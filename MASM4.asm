@@ -31,16 +31,18 @@ ListNode STRUCT
   NodeData 		DWORD 	?
   NextPtr  		DWORD 	?
   dPosition		DWORD	?
+  heapHandle	HANDLE	?
 ListNode ENDS
 
 	;Macro definitions
 	
 	;Data segment
 	.data
-pListHead		DWORD		0	
-pLastAddr		DWORD		0	
+pListHead		DWORD		OFFSET	lListTail	
+pLastAddr		DWORD		OFFSET	lListTail	
 lListTail		ListNode	<0,0,0>
 dCount			DWORD		0
+mHeap			HANDLE		?
 	
 strFileName		BYTE		"Input.txt"	
 hFileHandle		HANDLE		?
@@ -64,10 +66,12 @@ strNodeData		BYTE		"            Node data: ", 0
 strAddr			BYTE		"         This Address: ", 0
 strInput		BYTE		"Please input a string to be saved in the list- ", 0Ah, 0 
 strEmptyList	BYTE		"The list is empty.", 0Ah, 0
+strIndexInput	BYTE		"Please input a node position (item #): ", 0
 
 strSelection	BYTE		3 DUP(0)
 strSelNum		BYTE		2 DUP(0)
 dAllocatedBytes	DWORD 		0
+dInt			DWORD		0
 
 	;Code segment
 	.code
@@ -177,10 +181,10 @@ getSelection			PROC		USES	ESI	EBX	EAX
 	
 	JMP		RETURN
 .ELSEIF		EAX == 3
-
+	CALL	deleteNode
 	JMP		RETURN
 .ELSEIF		EAX == 4
-
+	CALL	editTarget
 	JMP		RETURN
 .ELSEIF		EAX == 5
 
@@ -208,14 +212,14 @@ dumpList		PROC		USES	EDX	ESI	EAX	ECX
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
 	CALL	ClrScr										;call ClrScr, clear the screen
-	MOV		ECX, 	dCount								;move dCount into ECX
+	
+	MOV 	ESI,	pListHead							;move the head of the list into ESI
+	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;move the position # of address ESI into ECX
 	CMP		ECX,	0									;ensure the list is not empty
 	JE		EMPTY										;if list is empty jump to EMPTY
 	
-	CALL	ClrScr										;call ClrScr, clear the console screen
 	MOV 	EDX,	OFFSET strListSF					;move the offset of strListSF into EDX
 	CALL	WriteString									;write string of address EDX to console
-	MOV 	ESI,	pListHead							;move the head of the list into ESI
 
 WLOOP:	
 	MOV 	EDX,	OFFSET strNodeNum					;move the offset of strNodeNum into EDX
@@ -265,7 +269,9 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
-	INVOKE memoryallocBailey, 12  						;allocate memory for listNode
+	INVOKE 	GetProcessHeap
+	MOV		mHeap, 	EAX
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16
 	
 	;fail state
 .IF 		EAX == NULL
@@ -273,14 +279,15 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 	jmp 	QUIT										;jump to quit
 .ENDIF
 	MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
-	ADD		ECX,	12									;add 12 to current value in dAllocatedBytes
+	ADD		ECX,	16									;add 12 to current value in dAllocatedBytes
 	MOV		dAllocatedBytes,		ECX					;save the new value to memory
 	INC 	dCount										;move list count into ECX
-	MOV	 	ECX,	dCount								;increment count
+	MOV 	EDX,	dCount								;move dCount into EDX
 	MOV		ESI,	pLastAddr							;move the address in pLastAddr into ESI
+	MOV	 	ECX,	(ListNode PTR [ESI]).dPosition		;increment count
 	
 	;set pointer if list is null
-.IF ECX == 1			
+.IF ECX == 0			
 	MOV	 	pListHead, EAX								;set list head to current address in EAX
 	
 	;set pointers if list has at least one element
@@ -288,10 +295,12 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 	MOV		(ListNode PTR [ESI]).NextPtr, EAX			;set the last list items NextPtr equal to the address in EAX
 	
 .ENDIF
+	MOV		EBX,	mHeap
+	MOV		(ListNode PTR [EAX]).heapHandle, EBX		;move mHeap into heapHandle
 	MOV		(ListNode PTR [EAX]).NextPtr, OFFSET lListTail;set next pointer to NULL
 	MOV 	pLastAddr, 	EAX								;save the last address to memory
-	MOV 	(ListNode PTR [EAX]).dPosition, ECX			;move data into list node
-	CALL	getStringInput									;call getString, get string data from keyboard
+	MOV 	(ListNode PTR [EAX]).dPosition, EDX			;move count # into dPosition
+	CALL	getStringInput								;call getString, get string data from keyboard
 	MOV		(ListNode PTR [EAX]).NodeData, EBX			;move the new string address into .NodeData
 	
 QUIT:
@@ -310,7 +319,11 @@ getStringInput		PROC		USES	EAX	EDX	ECX
 ;	Returns:	Newly allocated memory address in EBX register
 ;---------------------------------------------------------------------------------------
 	CALL	ClrScr										;call ClrScr, clear the console screen
-	INVOKE 	memoryallocBailey, 512  					;allocate 512 bytes of memory
+	
+	INVOKE 	GetProcessHeap
+	MOV		mHeap, 	EAX
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 512
+	
 	MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
 	ADD		ECX,	512									;add 512 to current value in dAllocatedBytes
 	MOV		dAllocatedBytes,		ECX					;save the new value to memory
@@ -323,7 +336,187 @@ getStringInput		PROC		USES	EAX	EDX	ECX
 	RET
 getStringInput		ENDP
 
+
+
+;---------------------------------------------------------------------------------------
+deleteNode		PROC		USES	EDX	EDI	ESI	ECX	EAX	EBX	
+;
+;		This procedure will prompt for an node number (dPosition) to search for and delete.
+;	If the node is found it will be 'unlinked' from the list and its memory de-allocated. A 
+;	message will be displayed reflecting the result of the search/deletion.   
+;
+;---------------------------------------------------------------------------------------
+	CALL	ClrScr										;call ClrScr, clear the screen
+	
+	MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
+	CALL 	WriteString									;write the string of address EDX to the console
+	INVOKE	getString, addr	strSelNum, 3				;get string input
+	INVOKE	ascint32, addr strSelNum					;convert to 32 integer
+	CALL	Crlf
+	
+	MOV 	EDX,	0
+	
+	MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
+	MOV		ESI,	pListHead							;ESI == N
+	MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
+	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+	
+	
+	;check for item
+CHECKL:	
+	;item not found
+.IF			ECX == 0
+	mWrite	"Node not found."							;write not found message to console		
+	JMP		QUIT										;item is not found		;jump to QUIT
+
+	;item is found
+.ELSEIF		ECX == EAX
+	JMP		FOUND										;item is found			;jump to FOUND
+.ELSE	
+	INC		EDX
+	MOV		EDI,	ESI									;EDI == N				;next loops N - 1
+	MOV		ESI,	EBX									;ESI == N + 1			;next loops N
+	MOV		EBX,	(ListNode	PTR	[ESI]).NextPtr		;EBX == N + 2			;next loops N + 1
+	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+	JMP		CHECKL
+.ENDIF	
+	
+	;item found;;	De-allocate memory
+FOUND:	
+	;target item is last in the list
+.IF		EBX == 0
+	MOV		pLastAddr,	EDI								;move the previous address into memory labeled pLastAddr
+.ENDIF
+	;target item is first in the list
+.IF		EDX == 0
+	MOV		pListHead,	EBX								;move the next address into memory labeled pListHead
+.ENDIF
+
+	mWrite	"Delete successful!"						;write success message to the console 
+
+	MOV		EAX,	(ListNode PTR [ESI]).heapHandle		;move the heap handle into EAX
+	MOV		mHeap,	EAX									;move heapHandle to memory for de-allocation
+	INVOKE	HeapFree, mHeap, 0, ESI						;de-allocate
+
+	MOV		(listNode	PTR	[EDI]).NextPtr,	EBX			;move the next address into (previous address).NextPtr
+	
+	MOV		EAX,	dAllocatedBytes						;move dAllocatedBytes value to EAX
+	SUB		EAX,	528									;subtract 528 from EAX
+	MOV		dAllocatedBytes,	EAX						;move value in EAX into memory
+	
+	JMP QUIT
+	;item not found
+NOTFOUND:
+	mWrite	"Node not found."							;write not found message to console
+	JMP		QUIT
+	;immediate quit
+QUIT:
+	CALL	Crlf										;call Crlf, go to the next line
+	CALL	WaitMsg										;call waitMsg, wait for any key to be entered
+	RET
+deleteNode		ENDP
+
+
+
+;---------------------------------------------------------------------------------------
+editTarget		PROC		USES	EDX	EDI	ESI	EBX	ECX	EAX
+;
+;		This procedure will prompt for a list index number and search the list for the given 
+;	index.  If the index is found another prompt will be printed to the console asking for a 
+;	replacement string.  The given string will have new memory generated from the heap and 
+;	its address moved into the respective N.NodeData field of the STRUCT.
+;	Receives:	Nothing
+;	Returns:	Nothing
+;---------------------------------------------------------------------------------------
+	CALL	ClrScr
+	
+	MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
+	CALL 	WriteString									;write the string of address EDX to the console
+	INVOKE	getString, addr	strSelNum, 3				;get string input
+	INVOKE	ascint32, addr strSelNum					;convert to 32 integer
+	CALL	Crlf
+	
+	MOV 	EDX,	0
+	
+	MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
+	MOV		ESI,	pListHead							;ESI == N
+	MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
+	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+	
+	
+	;check for item
+CHECKL:	
+	;item not found
+.IF			ECX == 0
+	mWrite	"Node not found."							;write not found message to console		
+	JMP		QUIT										;item is not found		;jump to QUIT
+
+	;item is found
+.ELSEIF		ECX == EAX
+	JMP		FOUND										;item is found			;jump to FOUND
+.ELSE	
+	INC		EDX
+	MOV		EDI,	ESI									;EDI == N				;next loops N - 1
+	MOV		ESI,	EBX									;ESI == N + 1			;next loops N
+	MOV		EBX,	(ListNode	PTR	[ESI]).NextPtr		;EBX == N + 2			;next loops N + 1
+	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+	JMP		CHECKL
+.ENDIF	
+	
+	;item found;;	Edit string
+FOUND:	
+	;target item is last in the list
+
+	mWrite	"Edit successful!"						;write success message to the console 
+
+	CALL	getStringInput							;get the new string
+	MOV		(ListNode	PTR	[ESI]).NodeData,	EBX	;move the new string address into nodeData
+	
+	JMP QUIT
+	;item not found
+NOTFOUND:
+	mWrite	"Node not found."							;write not found message to console
+	JMP		QUIT
+	;immediate quit
+QUIT:
+	CALL	Crlf										;call Crlf, go to the next line
+	CALL	WaitMsg										;call waitMsg, wait for any key to be entered
+	
+	RET
+editTarget		ENDP
+
+
+
 end main												;end of main
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

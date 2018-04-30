@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.00.23506.0	    04/27/18 17:02:35
+Microsoft (R) Macro Assembler Version 14.00.23506.0	    04/30/18 05:15:19
 masm4.asm						     Page 1 - 1
 
 
@@ -51,33 +51,36 @@ masm4.asm						     Page 1 - 1
 					;Constants
 
 					;Struct definitions
- 0000000C			ListNode STRUCT
+ 00000010			ListNode STRUCT
  00000000  00000000		  NodeData 		DWORD 	?
  00000004  00000000		  NextPtr  		DWORD 	?
  00000008  00000000		  dPosition		DWORD	?
+ 0000000C  00000000		  heapHandle	HANDLE	?
 				ListNode ENDS
 
 					;Macro definitions
 					
 					;Data segment
  00000000				.data
- 00000000 00000000		pListHead		DWORD		0	
- 00000004 00000000		pLastAddr		DWORD		0	
+ 00000000 00000008 R		pListHead		DWORD		OFFSET	lListTail	
+ 00000004 00000008 R		pLastAddr		DWORD		OFFSET	lListTail	
  00000008 00000000		lListTail		ListNode	<0,0,0>
 	   00000000
 	   00000000
- 00000014 00000000		dCount			DWORD		0
+	   00000000
+ 00000018 00000000		dCount			DWORD		0
+ 0000001C 00000000		mHeap			HANDLE		?
 					
- 00000018 49 6E 70 75 74	strFileName		BYTE		"Input.txt"	
+ 00000020 49 6E 70 75 74	strFileName		BYTE		"Input.txt"	
 	   2E 74 78 74
- 00000021 00000000		hFileHandle		HANDLE		?
- 00000025 00000000		hSTDHandle		HANDLE		?	
+ 00000029 00000000		hFileHandle		HANDLE		?
+ 0000002D 00000000		hSTDHandle		HANDLE		?	
 					
- 00000029 09 09 4D 41 53	strMenu0 		BYTE		9h, 9h, "MASM4 TEXT EDITOR", 0Ah
+ 00000031 09 09 4D 41 53	strMenu0 		BYTE		9h, 9h, "MASM4 TEXT EDITOR", 0Ah
 	   4D 34 20 54 45
 	   58 54 20 45 44
 	   49 54 4F 52 0A
- 0000003D 09 44 61 74 61	strMenuMem		BYTE		9h, "Data Structure Memory Consumption: ", 0
+ 00000045 09 44 61 74 61	strMenuMem		BYTE		9h, "Data Structure Memory Consumption: ", 0
 	   20 53 74 72 75
 	   63 74 75 72 65
 	   20 4D 65 6D 6F
@@ -85,21 +88,21 @@ masm4.asm						     Page 1 - 1
 	   6E 73 75 6D 70
 	   74 69 6F 6E 3A
 	   20 00
- 00000062 20 62 79 74 65	strMenuBytes	BYTE		" bytes", 0Ah
+ 0000006A 20 62 79 74 65	strMenuBytes	BYTE		" bytes", 0Ah
 	   73 0A
- 00000069 3C 31 3E 20 56	strMenu1 		BYTE		"<1> View all strings", 0Ah, 0Ah
+ 00000071 3C 31 3E 20 56	strMenu1 		BYTE		"<1> View all strings", 0Ah, 0Ah
 	   69 65 77 20 61
 	   6C 6C 20 73 74
 	   72 69 6E 67 73
 	   0A 0A
- 0000007F 3C 32 3E 20 41	strMenu2 		BYTE		"<2> Add string", 0Ah
+ 00000087 3C 32 3E 20 41	strMenu2 		BYTE		"<2> Add string", 0Ah
 	   64 64 20 73 74
 	   72 69 6E 67 0A
- 0000008E 09 3C 61 3E 20	strMenu2a		BYTE		9h, "<a> from Keyboard", 0Ah
+ 00000096 09 3C 61 3E 20	strMenu2a		BYTE		9h, "<a> from Keyboard", 0Ah
 	   66 72 6F 6D 20
 	   4B 65 79 62 6F
 	   61 72 64 0A
- 000000A1 09 3C 62 3E 20	strMenu2b		BYTE		9h, "<b> from File. Statis file named input.txt", 0Ah, 0Ah
+ 000000A9 09 3C 62 3E 20	strMenu2b		BYTE		9h, "<b> from File. Statis file named input.txt", 0Ah, 0Ah
 	   66 72 6F 6D 20
 	   46 69 6C 65 2E
 	   20 53 74 61 74
@@ -108,7 +111,7 @@ masm4.asm						     Page 1 - 1
 	   6D 65 64 20 69
 	   6E 70 75 74 2E
 	   74 78 74 0A 0A
- 000000CE 3C 33 3E 20 44	strMenu3 		BYTE		"<3> Delete string. Given an index #, delete the string and de-allocate memory", 0Ah, 0Ah
+ 000000D6 3C 33 3E 20 44	strMenu3 		BYTE		"<3> Delete string. Given an index #, delete the string and de-allocate memory", 0Ah, 0Ah
 	   65 6C 65 74 65
 	   20 73 74 72 69
 	   6E 67 2E 20 47
@@ -124,7 +127,7 @@ masm4.asm						     Page 1 - 1
 	   6F 63 61 74 65
 	   20 6D 65 6D 6F
 	   72 79 0A 0A
- 0000011D 3C 34 3E 20 45	strMenu4 		BYTE		"<4> Edit string. Given an index #, replace old string w/ new string. Allocate/De-allocate as needed.", 0Ah, 0Ah
+ 00000125 3C 34 3E 20 45	strMenu4 		BYTE		"<4> Edit string. Given an index #, replace old string w/ new string. Allocate/De-allocate as needed.", 0Ah, 0Ah
 	   64 69 74 20 73
 	   74 72 69 6E 67
 	   2E 20 47 69 76
@@ -145,7 +148,7 @@ masm4.asm						     Page 1 - 1
 	   61 73 20 6E 65
 	   65 64 65 64 2E
 	   0A 0A
- 00000183 3C 35 3E 20 53	strMenu5 		BYTE		"<5> String search. Regardless of case, return all strings that match the substring given.", 0Ah, 0Ah
+ 0000018B 3C 35 3E 20 53	strMenu5 		BYTE		"<5> String search. Regardless of case, return all strings that match the substring given.", 0Ah, 0Ah
 	   74 72 69 6E 67
 	   20 73 65 61 72
 	   63 68 2E 20 52
@@ -164,32 +167,32 @@ masm4.asm						     Page 1 - 1
 	   6E 67 20 67 69
 	   76 65 6E 2E 0A
 	   0A
- 000001DE 3C 36 3E 20 53	strMenu6 		BYTE		"<6> Save File", 0Ah, 0Ah
+ 000001E6 3C 36 3E 20 53	strMenu6 		BYTE		"<6> Save File", 0Ah, 0Ah
 	   61 76 65 20 46
 	   69 6C 65 0A 0A
- 000001ED 3C 37 3E 20 51	strMenu7 		BYTE		"<7> Quit", 0Ah, 0
+ 000001F5 3C 37 3E 20 51	strMenu7 		BYTE		"<7> Quit", 0Ah, 0
 	   75 69 74 0A 00
- 000001F7 09 54 68 65 20	strListSF		BYTE		"	The List So Far...", 0Ah, 0Ah, 0
+ 000001FF 09 54 68 65 20	strListSF		BYTE		"	The List So Far...", 0Ah, 0Ah, 0
 	   4C 69 73 74 20
 	   53 6F 20 46 61
 	   72 2E 2E 2E 0A
 	   0A 00
- 0000020D 20 20 20 20 20	strNodeNum		BYTE		"          Item number: ", 0 
+ 00000215 20 20 20 20 20	strNodeNum		BYTE		"          Item number: ", 0 
 	   20 20 20 20 20
 	   49 74 65 6D 20
 	   6E 75 6D 62 65
 	   72 3A 20 00
- 00000225 20 20 20 20 20	strNodeData		BYTE		"            Node data: ", 0
+ 0000022D 20 20 20 20 20	strNodeData		BYTE		"            Node data: ", 0
 	   20 20 20 20 20
 	   20 20 4E 6F 64
 	   65 20 64 61 74
 	   61 3A 20 00
- 0000023D 20 20 20 20 20	strAddr			BYTE		"         This Address: ", 0
+ 00000245 20 20 20 20 20	strAddr			BYTE		"         This Address: ", 0
 	   20 20 20 20 54
 	   68 69 73 20 41
 	   64 64 72 65 73
 	   73 3A 20 00
- 00000255 50 6C 65 61 73	strInput		BYTE		"Please input a string to be saved in the list- ", 0Ah, 0 
+ 0000025D 50 6C 65 61 73	strInput		BYTE		"Please input a string to be saved in the list- ", 0Ah, 0 
 	   65 20 69 6E 70
 	   75 74 20 61 20
 	   73 74 72 69 6E
@@ -199,18 +202,27 @@ masm4.asm						     Page 1 - 1
 	   6E 20 74 68 65
 	   20 6C 69 73 74
 	   2D 20 0A 00
- 00000286 54 68 65 20 6C	strEmptyList	BYTE		"The list is empty.", 0Ah, 0
+ 0000028E 54 68 65 20 6C	strEmptyList	BYTE		"The list is empty.", 0Ah, 0
 	   69 73 74 20 69
 	   73 20 65 6D 70
 	   74 79 2E 0A 00
+ 000002A2 50 6C 65 61 73	strIndexInput	BYTE		"Please input a node position (item #): ", 0
+	   65 20 69 6E 70
+	   75 74 20 61 20
+	   6E 6F 64 65 20
+	   70 6F 73 69 74
+	   69 6F 6E 20 28
+	   69 74 65 6D 20
+	   23 29 3A 20 00
 
- 0000029A  00000003 [		strSelection	BYTE		3 DUP(0)
+ 000002CA  00000003 [		strSelection	BYTE		3 DUP(0)
 	    00
 	   ]
- 0000029D  00000002 [		strSelNum		BYTE		2 DUP(0)
+ 000002CD  00000002 [		strSelNum		BYTE		2 DUP(0)
 	    00
 	   ]
- 0000029F 00000000		dAllocatedBytes	DWORD 		0
+ 000002CF 00000000		dAllocatedBytes	DWORD 		0
+ 000002D3 00000000		dInt			DWORD		0
 
 					;Code segment
  00000000				.code
@@ -236,11 +248,11 @@ masm4.asm						     Page 1 - 1
 				;---------------------------------------------------------------------------------------
  00000014			MENU:	
  00000014  E8 00000000 E		CALL 	ClrScr										;clear the console screen
- 00000019  BA 00000029 R		MOV		EDX,	OFFSET strMenu0						;move the offset address of strMenu0 into EDX
+ 00000019  BA 00000031 R		MOV		EDX,	OFFSET strMenu0						;move the offset address of strMenu0 into EDX
  0000001E  E8 00000000 E		CALL	WriteString									;write the string to the console
- 00000023  A1 0000029F R		MOV		EAX, 	dAllocatedBytes						;move the value of dAllocatedBytes into EAX
+ 00000023  A1 000002CF R		MOV		EAX, 	dAllocatedBytes						;move the value of dAllocatedBytes into EAX
  00000028  E8 00000000 E		CALL 	WriteHex									;write hex value to console 
- 0000002D  BA 00000062 R		MOV		EDX, 	OFFSET strMenuBytes					;move offset address of strMenuBytes into EDX
+ 0000002D  BA 0000006A R		MOV		EDX, 	OFFSET strMenuBytes					;move offset address of strMenuBytes into EDX
  00000032  E8 00000000 E		CALL	WriteString									;finish menu output
 					INVOKE 	getstring, addr strSelection, 2				;get the string from the console and store it into memory labeled 'strInput
  00000043  E8 00000006			CALL 	validateSelection							;validate the input selection
@@ -261,7 +273,7 @@ masm4.asm						     Page 1 - 1
 				;	Receives: 	Nothing
 				;	Returns:  	1 or 0 to the AL register
 				;---------------------------------------------------------------------------------------
- 00000050  BE 0000029A R		MOV 	ESI,	OFFSET	strSelection				;move the offset address of strSelection into ESI	
+ 00000050  BE 000002CA R		MOV 	ESI,	OFFSET	strSelection				;move the offset address of strSelection into ESI	
 
  00000055  8A 1E			MOV		BL,		[ESI]								;move nth index of strSelection into BL for comparison
  00000057  80 FB 31			CMP		BL,		31h									;compare to ascii value of '1'
@@ -298,109 +310,109 @@ masm4.asm						     Page 1 - 1
 				;	Receives:	Nothing
 				;	Returns:	Nothing
 				;---------------------------------------------------------------------------------------
- 0000007F  BE 0000029A R		MOV		ESI, 	OFFSET strSelection					;move the offset address of strSelection into ESI
+ 0000007F  BE 000002CA R		MOV		ESI, 	OFFSET strSelection					;move the offset address of strSelection into ESI
  00000084  8A 1E			MOV		BL, 	[ESI]								;move the first element of strSelection into BL	
- 00000086  88 1D 0000029D R		MOV		strSelNum,	BL								;move BL into strSelNum
+ 00000086  88 1D 000002CD R		MOV		strSelNum,	BL								;move BL into strSelNum
 					INVOKE	ascint32,	addr strSelNum					;convert strSelNum to integer format
  00000096  8A 5E 01			MOV		BL,		[ESI+1]								;move 2nd index of strSelection into BL
 					
 				.IF			EAX == 1
- 0000009E  E8 0000004D			CALL 	dumpList									;call dumpList, display the entire list
- 000000A3  EB 47			JMP		RETURN
+ 0000009E  E8 00000057			CALL 	dumpList									;call dumpList, display the entire list
+ 000000A3  EB 51			JMP		RETURN
 					
 				.ELSEIF		EAX == 2
 					;case 2a
 					.IF		BL	== 61h
- 000000B1  E8 000000D8			CALL	createOne									;call createOne, insert a node with input via keyboard	
+ 000000B1  E8 000000DA			CALL	createOne									;call createOne, insert a node with input via keyboard	
 
 					;case 2b
 					.ELSE
 					
 					.ENDIF
 					
- 000000B8  EB 32			JMP		RETURN
+ 000000B8  EB 3C			JMP		RETURN
 				.ELSEIF		EAX == 3
-
- 000000C1  EB 29			JMP		RETURN
+ 000000C1  E8 000001A0			CALL	deleteNode
+ 000000C6  EB 2E			JMP		RETURN
 				.ELSEIF		EAX == 4
-
- 000000CA  EB 20			JMP		RETURN
+ 000000CF  E8 0000026A			CALL	editTarget
+ 000000D4  EB 20			JMP		RETURN
 				.ELSEIF		EAX == 5
 
- 000000D3  EB 17			JMP		RETURN
+ 000000DD  EB 17			JMP		RETURN
 				.ELSEIF		EAX == 6
 
- 000000DC  EB 0E			JMP		RETURN
+ 000000E6  EB 0E			JMP		RETURN
 				.ELSEIF		EAX == 7
 					INVOKE ExitProcess,0		
 					
 				.ENDIF
 
- 000000EC			RETURN:
+ 000000F6			RETURN:
 					RET
- 000000F0			getSelection 			ENDP
+ 000000FA			getSelection 			ENDP
 
 
 
 				;---------------------------------------------------------------------------------------
- 000000F0			dumpList		PROC		USES	EDX	ESI	EAX	ECX
+ 000000FA			dumpList		PROC		USES	EDX	ESI	EAX	ECX
 				;
 				;		This procedure will display the entire list to the console in a first-to-last order.
 				;	The objects number, data and address will be displayed.
 				;	Receives:	Nothing
 				;	Returns:	Nothing
 				;---------------------------------------------------------------------------------------
- 000000F4  E8 00000000 E		CALL	ClrScr										;call ClrScr, clear the screen
- 000000F9  8B 0D 00000014 R		MOV		ECX, 	dCount								;move dCount into ECX
- 000000FF  83 F9 00			CMP		ECX,	0									;ensure the list is not empty
- 00000102  74 76			JE		EMPTY										;if list is empty jump to EMPTY
+ 000000FE  E8 00000000 E		CALL	ClrScr										;call ClrScr, clear the screen
 					
- 00000104  E8 00000000 E		CALL	ClrScr										;call ClrScr, clear the console screen
- 00000109  BA 000001F7 R		MOV 	EDX,	OFFSET strListSF					;move the offset of strListSF into EDX
- 0000010E  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
- 00000113  8B 35 00000000 R		MOV 	ESI,	pListHead							;move the head of the list into ESI
-
- 00000119			WLOOP:	
- 00000119  BA 0000020D R		MOV 	EDX,	OFFSET strNodeNum					;move the offset of strNodeNum into EDX
- 0000011E  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
- 00000123  8B 46 08			MOV 	EAX,	(ListNode PTR [ESI]).dPosition		;move current nodes dPosition value into EAX
- 00000126  E8 00000000 E		CALL 	WriteDec									;write decimal of value EAX to console
- 0000012B  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
- 00000130  BA 00000225 R		MOV 	EDX,	OFFSET strNodeData					;move offset addresS of strNodeData into EDX
- 00000135  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
- 0000013A  8B 16			MOV 	EDX,	(ListNode PTR [ESI]).NodeData		;move current nodes nodeData into EDX
- 0000013C  E8 00000000 E		CALL 	WriteString									;write string of address EDX to console
- 00000141  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
- 00000146  BA 0000023D R		MOV 	EDX,	OFFSET strAddr						;move the offset address of strAddr into EDX
- 0000014B  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
- 00000150  8B C6			MOV 	EAX, 	ESI									;move the value of ESI (current nodes address) into EAX
- 00000152  E8 00000000 E		CALL	WriteHex									;write hex of value EAX to console
-
- 00000157  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
- 0000015C  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
- 00000161  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
- 00000166  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
-
- 0000016B  8B 46 04			MOV		EAX,	(ListNode PTR [ESI]).NextPtr		;move the next pointer into EAX
- 0000016E  8B F0			MOV 	ESI,	EAX									;move the address in EAX into ESI
- 00000170  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;move the next nodes position into ECX
- 00000173  83 F9 00			CMP		ECX, 	0									;ensure end of list has not been reached
- 00000176  75 A1			JNE		WLOOP										;jump so long as dPosition != 0
- 00000178  EB 0A			JMP 	RETURN										;jump to return
-
- 0000017A			EMPTY:	
- 0000017A  BA 00000286 R		MOV		EDX,	OFFSET strEmptyList					;move offset address of strEmptyList into EDX
- 0000017F  E8 00000000 E		CALL	WriteString									;write string of address EDX to the console
+ 00000103  8B 35 00000000 R		MOV 	ESI,	pListHead							;move the head of the list into ESI
+ 00000109  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;move the position # of address ESI into ECX
+ 0000010C  83 F9 00			CMP		ECX,	0									;ensure the list is not empty
+ 0000010F  74 6B			JE		EMPTY										;if list is empty jump to EMPTY
 					
- 00000184			RETURN:	
- 00000184  E8 00000000 E		CALL	WaitMsg										;wait for any key to be pressed
+ 00000111  BA 000001FF R		MOV 	EDX,	OFFSET strListSF					;move the offset of strListSF into EDX
+ 00000116  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
+
+ 0000011B			WLOOP:	
+ 0000011B  BA 00000215 R		MOV 	EDX,	OFFSET strNodeNum					;move the offset of strNodeNum into EDX
+ 00000120  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
+ 00000125  8B 46 08			MOV 	EAX,	(ListNode PTR [ESI]).dPosition		;move current nodes dPosition value into EAX
+ 00000128  E8 00000000 E		CALL 	WriteDec									;write decimal of value EAX to console
+ 0000012D  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 00000132  BA 0000022D R		MOV 	EDX,	OFFSET strNodeData					;move offset addresS of strNodeData into EDX
+ 00000137  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
+ 0000013C  8B 16			MOV 	EDX,	(ListNode PTR [ESI]).NodeData		;move current nodes nodeData into EDX
+ 0000013E  E8 00000000 E		CALL 	WriteString									;write string of address EDX to console
+ 00000143  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 00000148  BA 00000245 R		MOV 	EDX,	OFFSET strAddr						;move the offset address of strAddr into EDX
+ 0000014D  E8 00000000 E		CALL	WriteString									;write string of address EDX to console
+ 00000152  8B C6			MOV 	EAX, 	ESI									;move the value of ESI (current nodes address) into EAX
+ 00000154  E8 00000000 E		CALL	WriteHex									;write hex of value EAX to console
+
+ 00000159  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 0000015E  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 00000163  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 00000168  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+
+ 0000016D  8B 46 04			MOV		EAX,	(ListNode PTR [ESI]).NextPtr		;move the next pointer into EAX
+ 00000170  8B F0			MOV 	ESI,	EAX									;move the address in EAX into ESI
+ 00000172  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;move the next nodes position into ECX
+ 00000175  83 F9 00			CMP		ECX, 	0									;ensure end of list has not been reached
+ 00000178  75 A1			JNE		WLOOP										;jump so long as dPosition != 0
+ 0000017A  EB 0A			JMP 	RETURN										;jump to return
+
+ 0000017C			EMPTY:	
+ 0000017C  BA 0000028E R		MOV		EDX,	OFFSET strEmptyList					;move offset address of strEmptyList into EDX
+ 00000181  E8 00000000 E		CALL	WriteString									;write string of address EDX to the console
+					
+ 00000186			RETURN:	
+ 00000186  E8 00000000 E		CALL	WaitMsg										;wait for any key to be pressed
 					
 					RET
- 0000018E			dumpList		ENDP
+ 00000190			dumpList		ENDP
 
 
 				;---------------------------------------------------------------------------------------
- 0000018E			createOne		PROC		USES	EAX	ESI	ECX	EBX	
+ 00000190			createOne		PROC		USES	EAX	ESI	ECX	EBX	
 				;
 				;		This procedure will allocate memory for a new listNode object and populate its
 				;	attributes with proper data.  If memory can not be allocated a message will be displayed 
@@ -408,54 +420,59 @@ masm4.asm						     Page 1 - 1
 				;	Receives:	Nothing
 				;	Returns:	Nothing
 				;---------------------------------------------------------------------------------------
-					INVOKE memoryallocBailey, 12  						;allocate memory for listNode
+					INVOKE 	GetProcessHeap
+ 00000199  A3 0000001C R		MOV		mHeap, 	EAX
+					INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16
 					
 					;fail state
 				.IF 		EAX == NULL
 					mWrite "HeapAlloc failed"							;write fail message to console
- 000002A3		     1		.data		
- 000002A3 48 65 61 70 41     1		??0000 BYTE "HeapAlloc failed",0	
+ 000002D7		     1		.data		
+ 000002D7 48 65 61 70 41     1		??0000 BYTE "HeapAlloc failed",0	
 	   6C 6C 6F 63 20
 	   66 61 69 6C 65
 	   64 00
- 0000019D		     1		.code
- 0000019D  52		     1		push	edx
- 0000019E  BA 000002A3 R     1		mov	edx,OFFSET ??0000
- 000001A3  E8 00000000 E     1		call	WriteString
- 000001A8  5A		     1		pop	edx
- 000001A9  EB 46			jmp 	QUIT										;jump to quit
+ 000001B1		     1		.code
+ 000001B1  52		     1		push	edx
+ 000001B2  BA 000002D7 R     1		mov	edx,OFFSET ??0000
+ 000001B7  E8 00000000 E     1		call	WriteString
+ 000001BC  5A		     1		pop	edx
+ 000001BD  EB 51			jmp 	QUIT										;jump to quit
 				.ENDIF
- 000001AB  8B 0D 0000029F R		MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
- 000001B1  83 C1 0C			ADD		ECX,	12									;add 12 to current value in dAllocatedBytes
- 000001B4  89 0D 0000029F R		MOV		dAllocatedBytes,		ECX					;save the new value to memory
- 000001BA  FF 05 00000014 R		INC 	dCount										;move list count into ECX
- 000001C0  8B 0D 00000014 R		MOV	 	ECX,	dCount								;increment count
- 000001C6  8B 35 00000004 R		MOV		ESI,	pLastAddr							;move the address in pLastAddr into ESI
+ 000001BF  8B 0D 000002CF R		MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
+ 000001C5  83 C1 10			ADD		ECX,	16									;add 12 to current value in dAllocatedBytes
+ 000001C8  89 0D 000002CF R		MOV		dAllocatedBytes,		ECX					;save the new value to memory
+ 000001CE  FF 05 00000018 R		INC 	dCount										;move list count into ECX
+ 000001D4  8B 15 00000018 R		MOV 	EDX,	dCount								;move dCount into EDX
+ 000001DA  8B 35 00000004 R		MOV		ESI,	pLastAddr							;move the address in pLastAddr into ESI
+ 000001E0  8B 4E 08			MOV	 	ECX,	(ListNode PTR [ESI]).dPosition		;increment count
 					
 					;set pointer if list is null
-				.IF ECX == 1			
- 000001D1  A3 00000000 R		MOV	 	pListHead, EAX								;set list head to current address in EAX
+				.IF ECX == 0			
+ 000001E7  A3 00000000 R		MOV	 	pListHead, EAX								;set list head to current address in EAX
 					
 					;set pointers if list has at least one element
 				.ELSE
- 000001D8  89 46 04			MOV		(ListNode PTR [ESI]).NextPtr, EAX			;set the last list items NextPtr equal to the address in EAX
+ 000001EE  89 46 04			MOV		(ListNode PTR [ESI]).NextPtr, EAX			;set the last list items NextPtr equal to the address in EAX
 					
 				.ENDIF
- 000001DB  C7 40 04			MOV		(ListNode PTR [EAX]).NextPtr, OFFSET lListTail;set next pointer to NULL
+ 000001F1  8B 1D 0000001C R		MOV		EBX,	mHeap
+ 000001F7  89 58 0C			MOV		(ListNode PTR [EAX]).heapHandle, EBX		;move mHeap into heapHandle
+ 000001FA  C7 40 04			MOV		(ListNode PTR [EAX]).NextPtr, OFFSET lListTail;set next pointer to NULL
 	   00000008 R
- 000001E2  A3 00000004 R		MOV 	pLastAddr, 	EAX								;save the last address to memory
- 000001E7  89 48 08			MOV 	(ListNode PTR [EAX]).dPosition, ECX			;move data into list node
- 000001EA  E8 00000007			CALL	getStringInput									;call getString, get string data from keyboard
- 000001EF  89 18			MOV		(ListNode PTR [EAX]).NodeData, EBX			;move the new string address into .NodeData
+ 00000201  A3 00000004 R		MOV 	pLastAddr, 	EAX								;save the last address to memory
+ 00000206  89 50 08			MOV 	(ListNode PTR [EAX]).dPosition, EDX			;move count # into dPosition
+ 00000209  E8 00000007			CALL	getStringInput								;call getString, get string data from keyboard
+ 0000020E  89 18			MOV		(ListNode PTR [EAX]).NodeData, EBX			;move the new string address into .NodeData
 					
- 000001F1			QUIT:
+ 00000210			QUIT:
 					RET
- 000001F6			createOne	ENDP
+ 00000215			createOne	ENDP
 
 
 
 				;---------------------------------------------------------------------------------------
- 000001F6			getStringInput		PROC		USES	EAX	EDX	ECX
+ 00000215			getStringInput		PROC		USES	EAX	EDX	ECX
 				;
 				;		This procedure is invoked by createOne and will display a prompt asking for an input
 				;	string.  512 bytes of memory will be allocated for the string and the new string will
@@ -463,26 +480,270 @@ masm4.asm						     Page 1 - 1
 				;	Receives:	Nothing
 				;	Returns:	Newly allocated memory address in EBX register
 				;---------------------------------------------------------------------------------------
- 000001F9  E8 00000000 E		CALL	ClrScr										;call ClrScr, clear the console screen
-					INVOKE 	memoryallocBailey, 512  					;allocate 512 bytes of memory
- 00000208  8B 0D 0000029F R		MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
- 0000020E  81 C1 00000200		ADD		ECX,	512									;add 512 to current value in dAllocatedBytes
- 00000214  89 0D 0000029F R		MOV		dAllocatedBytes,		ECX					;save the new value to memory
- 0000021A  8B D8			MOV 	EBX,	EAX									;move the address in EAX into EBX
- 0000021C  BA 00000255 R		MOV 	EDX,	OFFSET strInput						;move the offset address of strInput into EDX
- 00000221  E8 00000000 E		CALL	WriteString									;write the string of address EDX to the console
+ 00000218  E8 00000000 E		CALL	ClrScr										;call ClrScr, clear the console screen
+					
+					INVOKE 	GetProcessHeap
+ 00000222  A3 0000001C R		MOV		mHeap, 	EAX
+					INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 512
+					
+ 00000239  8B 0D 000002CF R		MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
+ 0000023F  81 C1 00000200		ADD		ECX,	512									;add 512 to current value in dAllocatedBytes
+ 00000245  89 0D 000002CF R		MOV		dAllocatedBytes,		ECX					;save the new value to memory
+ 0000024B  8B D8			MOV 	EBX,	EAX									;move the address in EAX into EBX
+ 0000024D  BA 0000025D R		MOV 	EDX,	OFFSET strInput						;move the offset address of strInput into EDX
+ 00000252  E8 00000000 E		CALL	WriteString									;write the string of address EDX to the console
 					
 					INVOKE	getString, EBX, 512							;get the string from the console
 					
 					RET
- 00000235			getStringInput		ENDP
+ 00000266			getStringInput		ENDP
+
+
+
+				;---------------------------------------------------------------------------------------
+ 00000266			deleteNode		PROC		USES	EDX	EDI	ESI	ECX	EAX	EBX	
+				;
+				;		This procedure will prompt for an node number (dPosition) to search for and delete.
+				;	If the node is found it will be 'unlinked' from the list and its memory de-allocated. A 
+				;	message will be displayed reflecting the result of the search/deletion.   
+				;
+				;---------------------------------------------------------------------------------------
+ 0000026C  E8 00000000 E		CALL	ClrScr										;call ClrScr, clear the screen
+					
+ 00000271  BA 000002A2 R		MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
+ 00000276  E8 00000000 E		CALL 	WriteString									;write the string of address EDX to the console
+					INVOKE	getString, addr	strSelNum, 3				;get string input
+					INVOKE	ascint32, addr strSelNum					;convert to 32 integer
+ 00000291  E8 00000000 E		CALL	Crlf
+					
+ 00000296  BA 00000000			MOV 	EDX,	0
+					
+ 0000029B  BF 00000000 R		MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
+ 000002A0  8B 35 00000000 R		MOV		ESI,	pListHead							;ESI == N
+ 000002A6  8B 5E 04			MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
+ 000002A9  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+					
+					
+					;check for item
+ 000002AC			CHECKL:	
+					;item not found
+				.IF			ECX == 0
+					mWrite	"Node not found."							;write not found message to console		
+ 000002E8		     1		.data		
+ 000002E8 4E 6F 64 65 20     1		??0001 BYTE "Node not found.",0	
+	   6E 6F 74 20 66
+	   6F 75 6E 64 2E
+	   00
+ 000002B0		     1		.code
+ 000002B0  52		     1		push	edx
+ 000002B1  BA 000002E8 R     1		mov	edx,OFFSET ??0001
+ 000002B6  E8 00000000 E     1		call	WriteString
+ 000002BB  5A		     1		pop	edx
+ 000002BC  EB 6F			JMP		QUIT										;item is not found		;jump to QUIT
+
+					;item is found
+				.ELSEIF		ECX == EAX
+ 000002C4  EB 0F			JMP		FOUND										;item is found			;jump to FOUND
+				.ELSE	
+ 000002C8  42				INC		EDX
+ 000002C9  8B FE			MOV		EDI,	ESI									;EDI == N				;next loops N - 1
+ 000002CB  8B F3			MOV		ESI,	EBX									;ESI == N + 1			;next loops N
+ 000002CD  8B 5E 04			MOV		EBX,	(ListNode	PTR	[ESI]).NextPtr		;EBX == N + 2			;next loops N + 1
+ 000002D0  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+ 000002D3  EB D7			JMP		CHECKL
+				.ENDIF	
+					
+					;item found;;	De-allocate memory
+ 000002D5			FOUND:	
+					;target item is last in the list
+				.IF		EBX == 0
+ 000002D9  89 3D 00000004 R		MOV		pLastAddr,	EDI								;move the previous address into memory labeled pLastAddr
+				.ENDIF
+					;target item is first in the list
+				.IF		EDX == 0
+ 000002E3  89 1D 00000000 R		MOV		pListHead,	EBX								;move the next address into memory labeled pListHead
+				.ENDIF
+
+					mWrite	"Delete successful!"						;write success message to the console 
+ 000002F8		     1		.data		
+ 000002F8 44 65 6C 65 74     1		??0002 BYTE "Delete successful!",0	
+	   65 20 73 75 63
+	   63 65 73 73 66
+	   75 6C 21 00
+ 000002E9		     1		.code
+ 000002E9  52		     1		push	edx
+ 000002EA  BA 000002F8 R     1		mov	edx,OFFSET ??0002
+ 000002EF  E8 00000000 E     1		call	WriteString
+ 000002F4  5A		     1		pop	edx
+
+ 000002F5  8B 46 0C			MOV		EAX,	(ListNode PTR [ESI]).heapHandle		;move the heap handle into EAX
+ 000002F8  A3 0000001C R		MOV		mHeap,	EAX									;move heapHandle to memory for de-allocation
+					INVOKE	HeapFree, mHeap, 0, ESI						;de-allocate
+
+ 0000030B  89 5F 04			MOV		(listNode	PTR	[EDI]).NextPtr,	EBX			;move the next address into (previous address).NextPtr
+					
+ 0000030E  A1 000002CF R		MOV		EAX,	dAllocatedBytes						;move dAllocatedBytes value to EAX
+ 00000313  2D 00000210			SUB		EAX,	528									;subtract 528 from EAX
+ 00000318  A3 000002CF R		MOV		dAllocatedBytes,	EAX						;move value in EAX into memory
+					
+ 0000031D  EB 0E			JMP QUIT
+					;item not found
+ 0000031F			NOTFOUND:
+					mWrite	"Node not found."							;write not found message to console
+ 0000030B		     1		.data		
+ 0000030B 4E 6F 64 65 20     1		??0003 BYTE "Node not found.",0	
+	   6E 6F 74 20 66
+	   6F 75 6E 64 2E
+	   00
+ 0000031F		     1		.code
+ 0000031F  52		     1		push	edx
+ 00000320  BA 0000030B R     1		mov	edx,OFFSET ??0003
+ 00000325  E8 00000000 E     1		call	WriteString
+ 0000032A  5A		     1		pop	edx
+ 0000032B  EB 00			JMP		QUIT
+					;immediate quit
+ 0000032D			QUIT:
+ 0000032D  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 00000332  E8 00000000 E		CALL	WaitMsg										;call waitMsg, wait for any key to be entered
+					RET
+ 0000033E			deleteNode		ENDP
+
+
+
+				;---------------------------------------------------------------------------------------
+ 0000033E			editTarget		PROC		USES	EDX	EDI	ESI	EBX	ECX	EAX
+				;
+				;		This procedure will prompt for a list index number and search the list for the given 
+				;	index.  If the index is found another prompt will be printed to the console asking for a 
+				;	replacement string.  The given string will have new memory generated from the heap and 
+				;	its address moved into the respective N.NodeData field of the STRUCT.
+				;	Receives:	Nothing
+				;	Returns:	Nothing
+				;---------------------------------------------------------------------------------------
+ 00000344  E8 00000000 E	CALL	ClrScr
+					
+ 00000349  BA 000002A2 R		MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
+ 0000034E  E8 00000000 E		CALL 	WriteString									;write the string of address EDX to the console
+					INVOKE	getString, addr	strSelNum, 3				;get string input
+					INVOKE	ascint32, addr strSelNum					;convert to 32 integer
+ 00000369  E8 00000000 E		CALL	Crlf
+					
+ 0000036E  BA 00000000			MOV 	EDX,	0
+					
+ 00000373  BF 00000000 R		MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
+ 00000378  8B 35 00000000 R		MOV		ESI,	pListHead							;ESI == N
+ 0000037E  8B 5E 04			MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
+ 00000381  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+					
+					
+					;check for item
+ 00000384			CHECKL:	
+					;item not found
+				.IF			ECX == 0
+					mWrite	"Node not found."							;write not found message to console		
+ 0000031B		     1		.data		
+ 0000031B 4E 6F 64 65 20     1		??0004 BYTE "Node not found.",0	
+	   6E 6F 74 20 66
+	   6F 75 6E 64 2E
+	   00
+ 00000388		     1		.code
+ 00000388  52		     1		push	edx
+ 00000389  BA 0000031B R     1		mov	edx,OFFSET ??0004
+ 0000038E  E8 00000000 E     1		call	WriteString
+ 00000393  5A		     1		pop	edx
+ 00000394  EB 3A			JMP		QUIT										;item is not found		;jump to QUIT
+
+					;item is found
+				.ELSEIF		ECX == EAX
+ 0000039C  EB 0F			JMP		FOUND										;item is found			;jump to FOUND
+				.ELSE	
+ 000003A0  42				INC		EDX
+ 000003A1  8B FE			MOV		EDI,	ESI									;EDI == N				;next loops N - 1
+ 000003A3  8B F3			MOV		ESI,	EBX									;ESI == N + 1			;next loops N
+ 000003A5  8B 5E 04			MOV		EBX,	(ListNode	PTR	[ESI]).NextPtr		;EBX == N + 2			;next loops N + 1
+ 000003A8  8B 4E 08			MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
+ 000003AB  EB D7			JMP		CHECKL
+				.ENDIF	
+					
+					;item found;;	Edit string
+ 000003AD			FOUND:	
+					;target item is last in the list
+
+					mWrite	"Edit successful!"						;write success message to the console 
+ 0000032B		     1		.data		
+ 0000032B 45 64 69 74 20     1		??0005 BYTE "Edit successful!",0	
+	   73 75 63 63 65
+	   73 73 66 75 6C
+	   21 00
+ 000003AD		     1		.code
+ 000003AD  52		     1		push	edx
+ 000003AE  BA 0000032B R     1		mov	edx,OFFSET ??0005
+ 000003B3  E8 00000000 E     1		call	WriteString
+ 000003B8  5A		     1		pop	edx
+
+ 000003B9  E8 FFFFFE57			CALL	getStringInput							;get the new string
+ 000003BE  89 1E			MOV		(ListNode	PTR	[ESI]).NodeData,	EBX	;move the new string address into nodeData
+					
+ 000003C0  EB 0E			JMP QUIT
+					;item not found
+ 000003C2			NOTFOUND:
+					mWrite	"Node not found."							;write not found message to console
+ 0000033C		     1		.data		
+ 0000033C 4E 6F 64 65 20     1		??0006 BYTE "Node not found.",0	
+	   6E 6F 74 20 66
+	   6F 75 6E 64 2E
+	   00
+ 000003C2		     1		.code
+ 000003C2  52		     1		push	edx
+ 000003C3  BA 0000033C R     1		mov	edx,OFFSET ??0006
+ 000003C8  E8 00000000 E     1		call	WriteString
+ 000003CD  5A		     1		pop	edx
+ 000003CE  EB 00			JMP		QUIT
+					;immediate quit
+ 000003D0			QUIT:
+ 000003D0  E8 00000000 E		CALL	Crlf										;call Crlf, go to the next line
+ 000003D5  E8 00000000 E		CALL	WaitMsg										;call waitMsg, wait for any key to be entered
+					
+					RET
+ 000003E1			editTarget		ENDP
+
+
 
 				end main												;end of main
 
 
 
 
-Microsoft (R) Macro Assembler Version 14.00.23506.0	    04/27/18 17:02:35
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Microsoft (R) Macro Assembler Version 14.00.23506.0	    04/30/18 05:15:19
 masm4.asm						     Symbols 2 - 1
 
 
@@ -563,10 +824,11 @@ KEY_EVENT_RECORD . . . . . . . .	 00000010
   UnicodeChar  . . . . . . . . .	 00000000	 Word
   AsciiChar  . . . . . . . . . .	 00000000	 Byte
   dwControlKeyState  . . . . . .	 0000000C	 DWord
-ListNode . . . . . . . . . . . .	 0000000C
+ListNode . . . . . . . . . . . .	 00000010
   NodeData . . . . . . . . . . .	 00000000	 DWord
   NextPtr  . . . . . . . . . . .	 00000004	 DWord
   dPosition  . . . . . . . . . .	 00000008	 DWord
+  heapHandle . . . . . . . . . .	 0000000C	 DWord
 MENU_EVENT_RECORD  . . . . . . .	 00000004
   dwCommandId  . . . . . . . . .	 00000000	 DWord
 MOUSE_EVENT_RECORD . . . . . . .	 00000010
@@ -598,8 +860,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 000002B4 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 00000235 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 0000034C Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000003E1 Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -707,17 +969,27 @@ WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ascint32 . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-createOne  . . . . . . . . . . .	P Near	 0000018E _TEXT	Length= 00000068 Public STDCALL
-  QUIT . . . . . . . . . . . . .	L Near	 000001F1 _TEXT	
+createOne  . . . . . . . . . . .	P Near	 00000190 _TEXT	Length= 00000085 Public STDCALL
+  QUIT . . . . . . . . . . . . .	L Near	 00000210 _TEXT	
+deleteNode . . . . . . . . . . .	P Near	 00000266 _TEXT	Length= 000000D8 Public STDCALL
+  CHECKL . . . . . . . . . . . .	L Near	 000002AC _TEXT	
+  FOUND  . . . . . . . . . . . .	L Near	 000002D5 _TEXT	
+  NOTFOUND . . . . . . . . . . .	L Near	 0000031F _TEXT	
+  QUIT . . . . . . . . . . . . .	L Near	 0000032D _TEXT	
 displayMenu  . . . . . . . . . .	P Near	 00000013 _TEXT	Length= 0000003B Public STDCALL
   MENU . . . . . . . . . . . . .	L Near	 00000014 _TEXT	
-dumpList . . . . . . . . . . . .	P Near	 000000F0 _TEXT	Length= 0000009E Public STDCALL
-  WLOOP  . . . . . . . . . . . .	L Near	 00000119 _TEXT	
-  EMPTY  . . . . . . . . . . . .	L Near	 0000017A _TEXT	
-  RETURN . . . . . . . . . . . .	L Near	 00000184 _TEXT	
-getSelection . . . . . . . . . .	P Near	 0000007C _TEXT	Length= 00000074 Public STDCALL
-  RETURN . . . . . . . . . . . .	L Near	 000000EC _TEXT	
-getStringInput . . . . . . . . .	P Near	 000001F6 _TEXT	Length= 0000003F Public STDCALL
+dumpList . . . . . . . . . . . .	P Near	 000000FA _TEXT	Length= 00000096 Public STDCALL
+  WLOOP  . . . . . . . . . . . .	L Near	 0000011B _TEXT	
+  EMPTY  . . . . . . . . . . . .	L Near	 0000017C _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 00000186 _TEXT	
+editTarget . . . . . . . . . . .	P Near	 0000033E _TEXT	Length= 000000A3 Public STDCALL
+  CHECKL . . . . . . . . . . . .	L Near	 00000384 _TEXT	
+  FOUND  . . . . . . . . . . . .	L Near	 000003AD _TEXT	
+  NOTFOUND . . . . . . . . . . .	L Near	 000003C2 _TEXT	
+  QUIT . . . . . . . . . . . . .	L Near	 000003D0 _TEXT	
+getSelection . . . . . . . . . .	P Near	 0000007C _TEXT	Length= 0000007E Public STDCALL
+  RETURN . . . . . . . . . . . .	L Near	 000000F6 _TEXT	
+getStringInput . . . . . . . . .	P Near	 00000215 _TEXT	Length= 00000051 Public STDCALL
 getstring  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000013 Public STDCALL
   MENU . . . . . . . . . . . . .	L Near	 00000000 _TEXT	
@@ -734,7 +1006,13 @@ Symbols:
 
                 N a m e                 Type     Value    Attr
 
-??0000 . . . . . . . . . . . . .	Byte	 000002A3 _DATA	
+??0000 . . . . . . . . . . . . .	Byte	 000002D7 _DATA	
+??0001 . . . . . . . . . . . . .	Byte	 000002E8 _DATA	
+??0002 . . . . . . . . . . . . .	Byte	 000002F8 _DATA	
+??0003 . . . . . . . . . . . . .	Byte	 0000030B _DATA	
+??0004 . . . . . . . . . . . . .	Byte	 0000031B _DATA	
+??0005 . . . . . . . . . . . . .	Byte	 0000032B _DATA	
+??0006 . . . . . . . . . . . . .	Byte	 0000033C _DATA	
 @CodeSize  . . . . . . . . . . .	Number	 00000000h   
 @DataSize  . . . . . . . . . . .	Number	 00000000h   
 @Interface . . . . . . . . . . .	Number	 00000003h   
@@ -948,13 +1226,14 @@ black  . . . . . . . . . . . . .	Number	 00000000h
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
-dAllocatedBytes  . . . . . . . .	DWord	 0000029F _DATA	
-dCount . . . . . . . . . . . . .	DWord	 00000014 _DATA	
+dAllocatedBytes  . . . . . . . .	DWord	 000002CF _DATA	
+dCount . . . . . . . . . . . . .	DWord	 00000018 _DATA	
+dInt . . . . . . . . . . . . . .	DWord	 000002D3 _DATA	
 exit . . . . . . . . . . . . . .	Text   	 INVOKE ExitProcess,0
 gray . . . . . . . . . . . . . .	Number	 00000008h   
 green  . . . . . . . . . . . . .	Number	 00000002h   
-hFileHandle  . . . . . . . . . .	DWord	 00000021 _DATA	
-hSTDHandle . . . . . . . . . . .	DWord	 00000025 _DATA	
+hFileHandle  . . . . . . . . . .	DWord	 00000029 _DATA	
+hSTDHandle . . . . . . . . . . .	DWord	 0000002D _DATA	
 lListTail  . . . . . . . . . . .	ListNode  00000008 _DATA	
 lightBlue  . . . . . . . . . . .	Number	 00000009h   
 lightCyan  . . . . . . . . . . .	Number	 0000000Bh   
@@ -962,31 +1241,33 @@ lightGray  . . . . . . . . . . .	Number	 00000007h
 lightGreen . . . . . . . . . . .	Number	 0000000Ah   
 lightMagenta . . . . . . . . . .	Number	 0000000Dh   
 lightRed . . . . . . . . . . . .	Number	 0000000Ch   
+mHeap  . . . . . . . . . . . . .	DWord	 0000001C _DATA	
 magenta  . . . . . . . . . . . .	Number	 00000005h   
 pLastAddr  . . . . . . . . . . .	DWord	 00000004 _DATA	
 pListHead  . . . . . . . . . . .	DWord	 00000000 _DATA	
 red  . . . . . . . . . . . . . .	Number	 00000004h   
-strAddr  . . . . . . . . . . . .	Byte	 0000023D _DATA	
-strEmptyList . . . . . . . . . .	Byte	 00000286 _DATA	
-strFileName  . . . . . . . . . .	Byte	 00000018 _DATA	
-strInput . . . . . . . . . . . .	Byte	 00000255 _DATA	
-strListSF  . . . . . . . . . . .	Byte	 000001F7 _DATA	
-strMenu0 . . . . . . . . . . . .	Byte	 00000029 _DATA	
-strMenu1 . . . . . . . . . . . .	Byte	 00000069 _DATA	
-strMenu2a  . . . . . . . . . . .	Byte	 0000008E _DATA	
-strMenu2b  . . . . . . . . . . .	Byte	 000000A1 _DATA	
-strMenu2 . . . . . . . . . . . .	Byte	 0000007F _DATA	
-strMenu3 . . . . . . . . . . . .	Byte	 000000CE _DATA	
-strMenu4 . . . . . . . . . . . .	Byte	 0000011D _DATA	
-strMenu5 . . . . . . . . . . . .	Byte	 00000183 _DATA	
-strMenu6 . . . . . . . . . . . .	Byte	 000001DE _DATA	
-strMenu7 . . . . . . . . . . . .	Byte	 000001ED _DATA	
-strMenuBytes . . . . . . . . . .	Byte	 00000062 _DATA	
-strMenuMem . . . . . . . . . . .	Byte	 0000003D _DATA	
-strNodeData  . . . . . . . . . .	Byte	 00000225 _DATA	
-strNodeNum . . . . . . . . . . .	Byte	 0000020D _DATA	
-strSelNum  . . . . . . . . . . .	Byte	 0000029D _DATA	
-strSelection . . . . . . . . . .	Byte	 0000029A _DATA	
+strAddr  . . . . . . . . . . . .	Byte	 00000245 _DATA	
+strEmptyList . . . . . . . . . .	Byte	 0000028E _DATA	
+strFileName  . . . . . . . . . .	Byte	 00000020 _DATA	
+strIndexInput  . . . . . . . . .	Byte	 000002A2 _DATA	
+strInput . . . . . . . . . . . .	Byte	 0000025D _DATA	
+strListSF  . . . . . . . . . . .	Byte	 000001FF _DATA	
+strMenu0 . . . . . . . . . . . .	Byte	 00000031 _DATA	
+strMenu1 . . . . . . . . . . . .	Byte	 00000071 _DATA	
+strMenu2a  . . . . . . . . . . .	Byte	 00000096 _DATA	
+strMenu2b  . . . . . . . . . . .	Byte	 000000A9 _DATA	
+strMenu2 . . . . . . . . . . . .	Byte	 00000087 _DATA	
+strMenu3 . . . . . . . . . . . .	Byte	 000000D6 _DATA	
+strMenu4 . . . . . . . . . . . .	Byte	 00000125 _DATA	
+strMenu5 . . . . . . . . . . . .	Byte	 0000018B _DATA	
+strMenu6 . . . . . . . . . . . .	Byte	 000001E6 _DATA	
+strMenu7 . . . . . . . . . . . .	Byte	 000001F5 _DATA	
+strMenuBytes . . . . . . . . . .	Byte	 0000006A _DATA	
+strMenuMem . . . . . . . . . . .	Byte	 00000045 _DATA	
+strNodeData  . . . . . . . . . .	Byte	 0000022D _DATA	
+strNodeNum . . . . . . . . . . .	Byte	 00000215 _DATA	
+strSelNum  . . . . . . . . . . .	Byte	 000002CD _DATA	
+strSelection . . . . . . . . . .	Byte	 000002CA _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
 wsprintf . . . . . . . . . . . .	Text   	 wsprintfA
 yellow . . . . . . . . . . . . .	Number	 0000000Eh   
