@@ -553,11 +553,11 @@ editTarget		ENDP
 ;---------------------------------------------------------------------------------------
 substringSearch		PROC		USES	EAX	EBX	ECX	EDX	ESI EDI
 ;
+;		This procedure will search all the strings in the linked list for a match to the sub 
+;	string.  If a match is found the string will be printed to the console.
 ;
-;
-;
-;
-;
+;	Receives:	Nothing
+;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
 	MOV		ESI,	pListHead							;ESI == N
 	
@@ -568,35 +568,37 @@ substringSearch		PROC		USES	EAX	EBX	ECX	EDX	ESI EDI
 	MOV		EDX,	OFFSET strSubPrompt					;move offset address of strSubPrompt into EDX
 	CALL	WriteString									;write msg to the console
 	CALL	getStringInput								;call getStringInput, dynamically allocate a string
+	CALL	Crlf										;call Crlf, go to the next line
 .ENDIF	
 
-	MOV		EDI, 	EBX									;move the address of the new string into EDI
+	MOV		EAX, 	EBX									;move the address of the new string into EDI
 	MOV		ECX,	0									;clear ECX
-	INVOKE	str_ucase,	EDI								;convert new string to lower case
 	
 START:
-	PUSH	EDI											;save EDI contents
+	MOV		EDI,	EAX									;restore to EDI
 	MOV		EDX,	(ListNode PTR [ESI]).nodeData		;move N.nodeData into EDX
 SUBSRCH:
-	MOV		BL,		[EDX]								;move nth element of List string into BL	
+	MOV		BL,		[EDX]								;move nth element of List string into BL
 	
 .IF		BL == 0
+	.IF	BYTE PTR [EDI] == 0	
+	JMP		MATCH										;match was found
+	.ENDIF
 	JMP		NEXT										;at the end of list string
-.ELSEIF	BYTE PTR [EDI] == 0	
-	JMP	MATCH											;match was found
 .ENDIF	
 	
-.IF		[EDI] == BL
-	INC		ESI											;go to the next list string element
+.IF	BYTE PTR [EDI] == BL
+	INC		EDX											;go to the next list string element
 	INC		EDI											;go to the next search string element
 .ELSE
-	INC		ESI											;go to the next list string element
+	INC		EDX											;go to the next list string element
 .ENDIF	
-	JMP SUBSRCH											;jump subsrch
+	JMP 	SUBSRCH										;jump subsrch
 
 MATCH:	
 	INC	ECX												;increment match counter
 .IF		ECX == 1
+	CALL	Crlf										;call Crlf, go to the next line
 	mWrite	"Matches found: "							;display match msg
 	CALL	Crlf										;call Crlf, go to the next line
 .ENDIF
@@ -604,22 +606,20 @@ MATCH:
 	CALL	WriteString									;Write the string to the console
 	CALL	Crlf										;go to the next line
 NEXT:
-	MOV		EBX,	(ListNode PTR [ESI]).nodeData		;move the next node address into EBX
+	MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;move the next node address into EBX
 	MOV		ESI,	EBX									;move the net address into ESI
-	MOV		EBX,	(ListNode PTR [ESI]).dPosition		;move the next elements dPosition into EBX
-	CMP		EBX,	0									;compare EBX to 0
-	JE		RETURN
-	POP		EDI											;restore EDI
-	JMP START
+	CMP		ESI,	OFFSET lListTail					;compare EBX to 0
+	JE		RETURN										;jump if equal
+	JMP START											;jump to start
 	
 RETURN:	
-	mWrite 	"End of search."
-	
+	mWrite 	"End of search."							;write ending search message to console
 QUIT:
 .IF		ECX == 0
-	mWrite	"No matches were found."
+	mWrite	"No matches were found."					;write no matches found msg to console
 .ENDIF
-
+	CALL	Crlf										;call Crlf, go to the next line
+	
 	RET
 substringSearch		ENDP
 
