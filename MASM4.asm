@@ -44,9 +44,11 @@ lListTail		ListNode	<0,0,0>
 dCount			DWORD		0
 mHeap			HANDLE		?
 	
-strFileName		BYTE		"Input.txt"	
+strInputFile	BYTE		"Input.txt"
+strSaveFile		BYTE		"Save.txt"
 hFileHandle		HANDLE		?
 hSTDHandle		HANDLE		?	
+dBytesWritten	DWORD		0	
 	
 strMenu0 		BYTE		9h, 9h, "MASM4 TEXT EDITOR", 0Ah
 strMenuMem		BYTE		9h, "Data Structure Memory Consumption: ", 0
@@ -64,12 +66,15 @@ strListSF		BYTE		"	The List So Far...", 0Ah, 0Ah, 0
 strNodeNum		BYTE		"          Item number: ", 0 
 strNodeData		BYTE		"            Node data: ", 0
 strAddr			BYTE		"         This Address: ", 0
-strInput		BYTE		"Please input a string to be saved in the list- ", 0Ah, 0 
+strInput		BYTE		"Please enter a string to be saved in the list- ", 0Ah, 0 
 strEmptyList	BYTE		"The list is empty.", 0Ah, 0
 strIndexInput	BYTE		"Please input a node position (item #): ", 0
+strSavePrompt	BYTE		"Would you like to append to the current data?(y/n): ", 0
+strSubPrompt	BYTE		"Please enter a string to be searched for- ", 0Ah, 0
 
-strSelection	BYTE		3 DUP(0)
-strSelNum		BYTE		2 DUP(0)
+strBuffer		BYTE		512	DUP(0)
+strSelection	BYTE		3 	DUP(0)
+strSelNum		BYTE		2 	DUP(0)
 dAllocatedBytes	DWORD 		0
 dInt			DWORD		0
 
@@ -159,6 +164,8 @@ getSelection			PROC		USES	ESI	EBX	EAX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
+	CALL	ClrScr										;call ClrScr, clear the screen
+	
 	MOV		ESI, 	OFFSET strSelection					;move the offset address of strSelection into ESI
 	MOV		BL, 	[ESI]								;move the first element of strSelection into BL	
 	MOV		strSelNum,	BL								;move BL into strSelNum
@@ -181,16 +188,16 @@ getSelection			PROC		USES	ESI	EBX	EAX
 	
 	JMP		RETURN
 .ELSEIF		EAX == 3
-	CALL	deleteNode
+	CALL	deleteNode									;call deleteNode, deletes the target node and de-allocates memory
 	JMP		RETURN
 .ELSEIF		EAX == 4
-	CALL	editTarget
+	CALL	editTarget									;call editTarget, edits the target string and adjust memory as needed
 	JMP		RETURN
 .ELSEIF		EAX == 5
-
+	CALL	substringSearch								;call substringSearch, display all strings that match the substring
 	JMP		RETURN
 .ELSEIF		EAX == 6
-
+	CALL	saveListToFile								;call saveListToFile, writes all  ListNode strings to Save.txt (overwrites current file)
 	JMP		RETURN
 .ELSEIF		EAX == 7
 	INVOKE ExitProcess,0		
@@ -198,6 +205,8 @@ getSelection			PROC		USES	ESI	EBX	EAX
 .ENDIF
 
 RETURN:
+	CALL	Crlf										;call Crlf, go to the next line
+	CALL	WaitMsg										;wait for any key to be pressed
 	RET
 getSelection 			ENDP
 
@@ -211,8 +220,6 @@ dumpList		PROC		USES	EDX	ESI	EAX	ECX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
-	CALL	ClrScr										;call ClrScr, clear the screen
-	
 	MOV 	ESI,	pListHead							;move the head of the list into ESI
 	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;move the position # of address ESI into ECX
 	CMP		ECX,	0									;ensure the list is not empty
@@ -254,8 +261,6 @@ EMPTY:
 	CALL	WriteString									;write string of address EDX to the console
 	
 RETURN:	
-	CALL	WaitMsg										;wait for any key to be pressed
-	
 	RET
 dumpList		ENDP
 
@@ -269,9 +274,9 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
-	INVOKE 	GetProcessHeap
-	MOV		mHeap, 	EAX
-	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16
+	INVOKE 	GetProcessHeap								;get the process handle
+	MOV		mHeap, 	EAX									;move the handle into memory
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16		;allocate memory for a ListNode STRUCT
 	
 	;fail state
 .IF 		EAX == NULL
@@ -300,6 +305,8 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 	MOV		(ListNode PTR [EAX]).NextPtr, OFFSET lListTail;set next pointer to NULL
 	MOV 	pLastAddr, 	EAX								;save the last address to memory
 	MOV 	(ListNode PTR [EAX]).dPosition, EDX			;move count # into dPosition
+	MOV 	EDX,	OFFSET strInput						;move the offset address of strInput into EDX
+	CALL	WriteString									;write the string of address EDX to the console
 	CALL	getStringInput								;call getString, get string data from keyboard
 	MOV		(ListNode PTR [EAX]).NodeData, EBX			;move the new string address into .NodeData
 	
@@ -310,7 +317,7 @@ createOne	ENDP
 
 
 ;---------------------------------------------------------------------------------------
-getStringInput		PROC		USES	EAX	EDX	ECX
+getStringInput		PROC		USES	EAX	EDX	ECX ESI
 ;
 ;		This procedure is invoked by createOne and will display a prompt asking for an input
 ;	string.  512 bytes of memory will be allocated for the string and the new string will
@@ -318,23 +325,75 @@ getStringInput		PROC		USES	EAX	EDX	ECX
 ;	Receives:	Nothing
 ;	Returns:	Newly allocated memory address in EBX register
 ;---------------------------------------------------------------------------------------
-	CALL	ClrScr										;call ClrScr, clear the console screen
+	INVOKE	getString, addr strBuffer, 512				;get the string from the console
 	
-	INVOKE 	GetProcessHeap
-	MOV		mHeap, 	EAX
-	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 512
-	
-	MOV		ECX,	dAllocatedBytes						;move value of dAllocatedBytes into ECX
-	ADD		ECX,	512									;add 512 to current value in dAllocatedBytes
+	MOV		ESI,	OFFSET strBuffer
+	CALL	getCount									;get the number of characters in strBuffer
+	ADD		ECX,	dAllocatedBytes						;add number dAllocatedBytes to number of bytes allocated
 	MOV		dAllocatedBytes,		ECX					;save the new value to memory
-	MOV 	EBX,	EAX									;move the address in EAX into EBX
-	MOV 	EDX,	OFFSET strInput						;move the offset address of strInput into EDX
-	CALL	WriteString									;write the string of address EDX to the console
 	
-	INVOKE	getString, EBX, 512							;get the string from the console
+	INVOKE 	GetProcessHeap								;get the process heap handle
+	MOV		mHeap, 	EAX									;move the handle into memory
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, ECX		;allocate memory on the heap
+	MOV 	EBX,	EAX									;move the address in EAX into EBX
+	
+	CALL	stringCopy									;copy strBuffer into new address
 	
 	RET
 getStringInput		ENDP
+
+
+
+;---------------------------------------------------------------------------------------
+getCount		PROC		USES	EAX	ESI
+;
+;		This procedure will count how many characters are in the byte array addressed in ESI.
+;	All characters will be counted until a null, 0h, is reached indicating the end of the 
+;	string.
+;	Receives:	address of string to be counter in ESI
+;	Returns:	# of characters to ECX
+;---------------------------------------------------------------------------------------
+	MOV		ESI,	OFFSET strBuffer					;move the offset address of strBuffer into ESI
+	MOV		ECX,	0									;clear ECX
+	
+L1:
+	MOV		AL,		[ESI]								;move the nth element of [ESI] into AL
+	CMP		AL,		0									;nth element to 0
+	JE		RETURN										;jump if nth element equals 0
+	INC		ESI											;go to nth + 1 element
+	INC		ECX											;increment ECX
+	JMP		L1											;jump to L1
+
+RETURN:	
+	RET
+getCount		ENDP
+
+
+
+;---------------------------------------------------------------------------------------
+stringCopy		PROC		USES	EBX	ESI
+;
+;		This procedure copies the contents of strBuffer into a newly allocated string address.
+;	All elements will be copied until a null character, 0h, is reached.  The address is 
+;	received through the EAX register.
+;
+;	Receives:	New string address in EAX
+;	Returns:	Nothing
+;---------------------------------------------------------------------------------------
+	MOV		ESI,	OFFSET strBuffer					;move the offset address of strBuffer into ESI
+	
+L1:
+	MOV		BL,		[ESI]								;move the nth element of [ESI] into BL
+	CMP		BL,		0									;compare nth element to 0
+	JE		RETURN										;jump if nth element equals 0
+	MOV		[EAX],	BL									;move BL into the nth element into [EAX]
+	INC		ESI											;go to nth + 1 element of ESI
+	INC		EAX											;go to nth + 1 element of EAX
+	JMP		L1											;jump to L1
+	
+RETURN:
+	RET
+stringCopy		ENDP
 
 
 
@@ -346,8 +405,12 @@ deleteNode		PROC		USES	EDX	EDI	ESI	ECX	EAX	EBX
 ;	message will be displayed reflecting the result of the search/deletion.   
 ;
 ;---------------------------------------------------------------------------------------
-	CALL	ClrScr										;call ClrScr, clear the screen
-	
+	MOV		ESI,	pListHead							;ESI == N
+.IF		ESI == OFFSET lListTail
+	mWrite "The list is empty."							;display console message
+	JMP		QUIT										;jump to quit
+.ENDIF	
+
 	MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
 	CALL 	WriteString									;write the string of address EDX to the console
 	INVOKE	getString, addr	strSelNum, 3				;get string input
@@ -357,10 +420,8 @@ deleteNode		PROC		USES	EDX	EDI	ESI	ECX	EAX	EBX
 	MOV 	EDX,	0
 	
 	MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
-	MOV		ESI,	pListHead							;ESI == N
 	MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
 	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
-	
 	
 	;check for item
 CHECKL:	
@@ -393,16 +454,21 @@ FOUND:
 .ENDIF
 
 	mWrite	"Delete successful!"						;write success message to the console 
-
+	PUSH	ESI											;save contents of ESI
+	MOV		EDX,	(ListNode PTR [ESI]).nodeData		;move nodeData into EDX
+	MOV		ESI,	EDX									;move nodeData into ESI
+	CALL	getCount									;call getCount
+	ADD		ECX,	16									;add number of bytes for ListNode being deleted
+	MOV		EAX,	dAllocatedBytes						;move dAllocatedBytes value to EAX
+	SUB		EAX,	ECX									;subtract 528 from EAX
+	MOV		dAllocatedBytes,	EAX						;move value in EAX into memory
+	POP		ESI
+	
 	MOV		EAX,	(ListNode PTR [ESI]).heapHandle		;move the heap handle into EAX
 	MOV		mHeap,	EAX									;move heapHandle to memory for de-allocation
 	INVOKE	HeapFree, mHeap, 0, ESI						;de-allocate
 
 	MOV		(listNode	PTR	[EDI]).NextPtr,	EBX			;move the next address into (previous address).NextPtr
-	
-	MOV		EAX,	dAllocatedBytes						;move dAllocatedBytes value to EAX
-	SUB		EAX,	528									;subtract 528 from EAX
-	MOV		dAllocatedBytes,	EAX						;move value in EAX into memory
 	
 	JMP QUIT
 	;item not found
@@ -411,8 +477,6 @@ NOTFOUND:
 	JMP		QUIT
 	;immediate quit
 QUIT:
-	CALL	Crlf										;call Crlf, go to the next line
-	CALL	WaitMsg										;call waitMsg, wait for any key to be entered
 	RET
 deleteNode		ENDP
 
@@ -428,7 +492,11 @@ editTarget		PROC		USES	EDX	EDI	ESI	EBX	ECX	EAX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
-	CALL	ClrScr
+	MOV		ESI,	pListHead							;ESI == N
+.IF		ESI == OFFSET lListTail
+	mWrite "The list is empty."							;display console message
+	JMP		QUIT										;jump to quit
+.ENDIF	
 	
 	MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
 	CALL 	WriteString									;write the string of address EDX to the console
@@ -439,7 +507,6 @@ editTarget		PROC		USES	EDX	EDI	ESI	EBX	ECX	EAX
 	MOV 	EDX,	0
 	
 	MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
-	MOV		ESI,	pListHead							;ESI == N
 	MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
 	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
 	
@@ -466,11 +533,10 @@ CHECKL:
 	;item found;;	Edit string
 FOUND:	
 	;target item is last in the list
-
-	mWrite	"Edit successful!"						;write success message to the console 
-
-	CALL	getStringInput							;get the new string
-	MOV		(ListNode	PTR	[ESI]).NodeData,	EBX	;move the new string address into nodeData
+	CALL	getStringInput								;get the new string
+	MOV		(ListNode	PTR	[ESI]).NodeData,	EBX		;move the new string address into nodeData
+	
+	mWrite	"Edit successful!"							;write success message to the console 
 	
 	JMP QUIT
 	;item not found
@@ -479,13 +545,159 @@ NOTFOUND:
 	JMP		QUIT
 	;immediate quit
 QUIT:
-	CALL	Crlf										;call Crlf, go to the next line
-	CALL	WaitMsg										;call waitMsg, wait for any key to be entered
-	
 	RET
 editTarget		ENDP
 
 
+
+;---------------------------------------------------------------------------------------
+substringSearch		PROC		USES	EAX	EBX	ECX	EDX	ESI EDI
+;
+;
+;
+;
+;
+;
+;---------------------------------------------------------------------------------------
+	MOV		ESI,	pListHead							;ESI == N
+	
+.IF		ESI == OFFSET lListTail
+	mWrite "The list is empty."							;display console message
+	JMP		QUIT										;jump to QUIT
+.ELSE
+	MOV		EDX,	OFFSET strSubPrompt					;move offset address of strSubPrompt into EDX
+	CALL	WriteString									;write msg to the console
+	CALL	getStringInput								;call getStringInput, dynamically allocate a string
+.ENDIF	
+
+	MOV		EDI, 	EBX									;move the address of the new string into EDI
+	MOV		ECX,	0									;clear ECX
+	INVOKE	str_ucase,	EDI								;convert new string to lower case
+	
+START:
+	PUSH	EDI											;save EDI contents
+	MOV		EDX,	(ListNode PTR [ESI]).nodeData		;move N.nodeData into EDX
+SUBSRCH:
+	MOV		BL,		[EDX]								;move nth element of List string into BL	
+	
+.IF		BL == 0
+	JMP		NEXT										;at the end of list string
+.ELSEIF	BYTE PTR [EDI] == 0	
+	JMP	MATCH											;match was found
+.ENDIF	
+	
+.IF		[EDI] == BL
+	INC		ESI											;go to the next list string element
+	INC		EDI											;go to the next search string element
+.ELSE
+	INC		ESI											;go to the next list string element
+.ENDIF	
+	JMP SUBSRCH											;jump subsrch
+
+MATCH:	
+	INC	ECX												;increment match counter
+.IF		ECX == 1
+	mWrite	"Matches found: "							;display match msg
+	CALL	Crlf										;call Crlf, go to the next line
+.ENDIF
+	MOV		EDX,	(ListNode PTR [ESI]).nodeData		;move N.nodeData into EDX
+	CALL	WriteString									;Write the string to the console
+	CALL	Crlf										;go to the next line
+NEXT:
+	MOV		EBX,	(ListNode PTR [ESI]).nodeData		;move the next node address into EBX
+	MOV		ESI,	EBX									;move the net address into ESI
+	MOV		EBX,	(ListNode PTR [ESI]).dPosition		;move the next elements dPosition into EBX
+	CMP		EBX,	0									;compare EBX to 0
+	JE		RETURN
+	POP		EDI											;restore EDI
+	JMP START
+	
+RETURN:	
+	mWrite 	"End of search."
+	
+QUIT:
+.IF		ECX == 0
+	mWrite	"No matches were found."
+.ENDIF
+
+	RET
+substringSearch		ENDP
+
+
+
+;---------------------------------------------------------------------------------------
+saveListToFile		PROC		USES	ESI	EAX	EBX	ECX	EDX	
+;
+;		This procedure saves every string in the list into an output file named 'Save.txt'.
+;	After all items have been saved a message will output how many bytes were saved into 
+;	the file.  This procedure completely overwrites the current Save.txt and all of its
+;	contents.
+;
+;	Receives:	Nothing
+;	Returns:	Nothing
+;---------------------------------------------------------------------------------------
+	MOV		ESI,	pListHead							;ESI == N
+	
+.IF		ESI == OFFSET lListTail
+	mWrite "The list is empty."							;display console message
+	JMP		QUIT										;jump to QUIT
+.ENDIF	
+
+	INVOKE 		CreateFile,	ADDR strSaveFile, GENERIC_WRITE, DO_NOT_SHARE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0
+
+.IF		EAX == INVALID_HANDLE_VALUE
+	mWrite "Error occured while opening file."			;write the error msg to the console
+	JMP		QUIT
+.ELSE
+	mWrite "Opened file 'Save.txt'."					;write the success msg to the console
+	CALL 	Crlf										;call Crlf, go to the next line
+	MOV		hFileHandle,	EAX							;move the file handle to memory
+.ENDIF
+
+	MOV		EAX,	0									;clear EAX
+	MOV		dBytesWritten, EAX							;clear dBytesWritten
+	PUSH	0											;push 0 for the loop
+WRITE:
+	CMP		DWORD PTR (ListNode PTR [ESI]).dPosition, 0	;compare N.dPosition to 0
+	JE		RETURN										;jump to RETURN if equal
+	MOV		EDX,	(ListNode PTR [ESI]).nodeData		;move the node data into EDX
+	PUSH	ESI											;push ESI onto the stack
+	MOV		ESI,	EDX									;move EDX into ESI for getCount
+	CALL	getCount									;call getCount, result is in ECX
+	POP		ESI											;restore ESI
+	
+	;EDX = pointer to string, ECX = # of bytes to write to file, EAX = number of bytes written after execution
+	INVOKE WriteFile, hFileHandle, EDX, ECX, addr dBytesWritten, 0 
+	
+	MOV		EBX, 	(ListNode PTR [ESI]).NextPtr		;move the next address into EBX
+	MOV		ESI,	EBX									;move the next address into ESI ; ESI = n
+	POP		EBX											;restore EBX   
+	ADD		EBX,	dBytesWritten						;add bytes written to EBX
+	PUSH	EBX											;push EBX
+	JMP		WRITE										;jump to WRITE
+
+RETURN:
+	;close the file referenced by the handle hFileHandle
+	INVOKE 	CloseHandle, hFileHandle					
+	
+	POP		EBX											;restore EBX
+	MOV		EAX, 	EBX									;move EBX into EAX for WriteDec
+	CALL	WriteDec									;call WriteDec, display EAXs value to the console
+	mWrite	" bytes were written to the file."			;display the written bytes msg to the console
+	
+QUIT:	
+	RET
+saveListToFile		ENDP
+
+
+
+;---------------------------------------------------------------------------------------
+
+;---------------------------------------------------------------------------------------
+
+
+
+;---------------------------------------------------------------------------------------
 
 end main												;end of main
 

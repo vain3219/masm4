@@ -1,6 +1,12 @@
 MASM4 --------
 --------------
 
+
+-- ANYTHING WITH A MISSING DESCRIPTION IS NOT FINISHED -- 
+
+
+
+
 I'm using a linked list for our data structure.
 The ListNode STRUCT currently has 3 attributes:
 		dPosition 	--- the number of the node inserted
