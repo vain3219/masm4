@@ -25,7 +25,9 @@
 	ExitProcess 			PROTO, dwExitCode:dword
 
 	;Constants
-
+HEAP_START		=		2000000
+HEAP_MAX		=		400000000
+	
 	;Struct definitions
 ListNode STRUCT
   NodeData 		DWORD 	?
@@ -81,13 +83,25 @@ dInt			DWORD		0
 	;Code segment
 	.code
 main proc												;start of main ;start of program
+	INVOKE	HeapCreate, 0, HEAP_START, HEAP_MAX			;allocate new private heap
+.If	EAX == NULL
+	CALL	WriteWindowsMsg
+	JMP		QUIT
+.ELSE
+	MOV		mHeap,	EAX
+.ENDIF
 MENU:	
-	CALL displayMenu									;display the menu
+	CALL 	displayMenu									;display the menu
 	
-	CALL getSelection									;get the selection input
-	JMP MENU
+	CALL 	getSelection								;get the selection input
+	JMP 	MENU
 	
-	INVOKE ExitProcess,0								;terminate program
+QUIT:	
+	INVOKE 	HeapDestroy,	mHeap						;Destroy the private heap
+.IF eax == NULL
+	CALL 	WriteWindowsMsg 							; show error message
+.ENDIF
+	INVOKE 	ExitProcess,	0							;terminate program
 main ENDP												;end of main procedure
 
 
@@ -200,7 +214,11 @@ getSelection			PROC		USES	ESI	EBX	EAX
 	CALL	saveListToFile								;call saveListToFile, writes all  ListNode strings to Save.txt (overwrites current file)
 	JMP		RETURN
 .ELSEIF		EAX == 7
-	INVOKE ExitProcess,0		
+	INVOKE 	HeapDestroy,	mHeap						;Destroy the private heap
+.IF eax == NULL
+	CALL 	WriteWindowsMsg 							; show error message
+.ENDIF
+	INVOKE ExitProcess,0								;exit process
 	
 .ENDIF
 
@@ -229,25 +247,25 @@ dumpList		PROC		USES	EDX	ESI	EAX	ECX
 	CALL	WriteString									;write string of address EDX to console
 
 WLOOP:	
-	MOV 	EDX,	OFFSET strNodeNum					;move the offset of strNodeNum into EDX
-	CALL	WriteString									;write string of address EDX to console
+	;MOV 	EDX,	OFFSET strNodeNum					;move the offset of strNodeNum into EDX
+	;CALL	WriteString									;write string of address EDX to console
 	MOV 	EAX,	(ListNode PTR [ESI]).dPosition		;move current nodes dPosition value into EAX
 	CALL 	WriteDec									;write decimal of value EAX to console
-	CALL	Crlf										;call Crlf, go to the next line
-	MOV 	EDX,	OFFSET strNodeData					;move offset addresS of strNodeData into EDX
-	CALL	WriteString									;write string of address EDX to console
+	mWrite	" "											;
+	;MOV 	EDX,	OFFSET strNodeData					;move offset addresS of strNodeData into EDX
+	;CALL	WriteString									;write string of address EDX to console
 	MOV 	EDX,	(ListNode PTR [ESI]).NodeData		;move current nodes nodeData into EDX
 	CALL 	WriteString									;write string of address EDX to console
-	CALL	Crlf										;call Crlf, go to the next line
-	MOV 	EDX,	OFFSET strAddr						;move the offset address of strAddr into EDX
-	CALL	WriteString									;write string of address EDX to console
-	MOV 	EAX, 	ESI									;move the value of ESI (current nodes address) into EAX
-	CALL	WriteHex									;write hex of value EAX to console
+	;CALL	Crlf										;call Crlf, go to the next line
+	;MOV 	EDX,	OFFSET strAddr						;move the offset address of strAddr into EDX
+	;CALL	WriteString									;write string of address EDX to console
+	;MOV 	EAX, 	ESI									;move the value of ESI (current nodes address) into EAX
+	;CALL	WriteHex									;write hex of value EAX to console
 
-	CALL	Crlf										;call Crlf, go to the next line
-	CALL	Crlf										;call Crlf, go to the next line
-	CALL	Crlf										;call Crlf, go to the next line
-	CALL	Crlf										;call Crlf, go to the next line
+	;CALL	Crlf										;call Crlf, go to the next line
+	;CALL	Crlf										;call Crlf, go to the next line
+	;CALL	Crlf										;call Crlf, go to the next line
+	;CALL	Crlf										;call Crlf, go to the next line
 
 	MOV		EAX,	(ListNode PTR [ESI]).NextPtr		;move the next pointer into EAX
 	MOV 	ESI,	EAX									;move the address in EAX into ESI
@@ -274,8 +292,8 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
-	INVOKE 	GetProcessHeap								;get the process handle
-	MOV		mHeap, 	EAX									;move the handle into memory
+;	INVOKE 	GetProcessHeap								;get the process handle
+;	MOV		mHeap, 	EAX									;move the handle into memory
 	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16		;allocate memory for a ListNode STRUCT
 	
 	;fail state
@@ -332,8 +350,8 @@ getStringInput		PROC		USES	EAX	EDX	ECX ESI
 	ADD		ECX,	dAllocatedBytes						;add number dAllocatedBytes to number of bytes allocated
 	MOV		dAllocatedBytes,		ECX					;save the new value to memory
 	
-	INVOKE 	GetProcessHeap								;get the process heap handle
-	MOV		mHeap, 	EAX									;move the handle into memory
+	;INVOKE 	GetProcessHeap								;get the process heap handle
+	;MOV		mHeap, 	EAX									;move the handle into memory
 	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, ECX		;allocate memory on the heap
 	MOV 	EBX,	EAX									;move the address in EAX into EBX
 	
@@ -363,8 +381,8 @@ L1:
 	INC		ESI											;go to nth + 1 element
 	INC		ECX											;increment ECX
 	JMP		L1											;jump to L1
-
 RETURN:	
+	ADD		ECX,	2									;include cr and lf
 	RET
 getCount		ENDP
 
@@ -392,6 +410,12 @@ L1:
 	JMP		L1											;jump to L1
 	
 RETURN:
+	MOV		BL,		0Ah
+	MOV		[EAX],		BL
+	MOV		BL,		13
+	MOV		[EAX + 1],	BL
+	MOV		BL,		0
+	MOV		[EAX + 2], 	BL
 	RET
 stringCopy		ENDP
 
