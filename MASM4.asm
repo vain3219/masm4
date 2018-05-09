@@ -22,11 +22,19 @@
 	getstring				PROTO Near32 stdcall, lpStringToGet:dword, dlength:dword
 	ascint32 				PROTO Near32 stdcall, lpStringOfNumericChars:dword
 	memoryallocBailey		PROTO NEAR32 stdcall, dSize:dword
+	GetClipboardData		PROTO, something:dword
+	GlobalLock				PROTO, :DWORD
+	OpenClipboard			PROTO, something:dword
+	GlobalSize				PROTO, something:dword
+	lstrcpy					PROTO, :DWORD, :DWORD
+	GlobalUnlock			PROTO, :DWORD
+	CloseClipboard			PROTO
 	ExitProcess 			PROTO, dwExitCode:dword
 
 	;Constants
 HEAP_START		=		2000000
 HEAP_MAX		=		400000000
+BUFF_SIZE		=		512
 	
 	;Struct definitions
 ListNode STRUCT
@@ -58,7 +66,8 @@ strMenuBytes	BYTE		" bytes", 0Ah
 strMenu1 		BYTE		"<1> View all strings", 0Ah, 0Ah
 strMenu2 		BYTE		"<2> Add string", 0Ah
 strMenu2a		BYTE		9h, "<a> from Keyboard", 0Ah
-strMenu2b		BYTE		9h, "<b> from File. Statis file named input.txt", 0Ah, 0Ah
+strMenu2b		BYTE		9h, "<b> from File. Static file named input.txt", 0Ah
+strMenu2c		BYTE		9h,	"<c> from the clipboard", 0Ah, 0Ah
 strMenu3 		BYTE		"<3> Delete string. Given an index #, delete the string and de-allocate memory", 0Ah, 0Ah
 strMenu4 		BYTE		"<4> Edit string. Given an index #, replace old string w/ new string. Allocate/De-allocate as needed.", 0Ah, 0Ah
 strMenu5 		BYTE		"<5> String search. Regardless of case, return all strings that match the substring given.", 0Ah, 0Ah
@@ -90,6 +99,7 @@ main proc												;start of main ;start of program
 .ELSE
 	MOV		mHeap,	EAX
 .ENDIF
+
 MENU:	
 	CALL 	displayMenu									;display the menu
 	
@@ -154,7 +164,7 @@ validateSelection		PROC		USES	ESI	EBX
 	MOV		BL,		[ESI+1]								;move the next index of strSelection into BL
 	CMP		BL,		60h									;compare to ascii value 1 less than 'a'
 	JLE		FALSE1										;jump if equal or anything less than 60h
-	CMP		BL,		63h									;compare to ascii value 1 more than 'b'
+	CMP		BL,		64h									;compare to ascii value 1 more than 'b'
 	JGE		FALSE1										;jump if equal or anything greater than 63h
 .ENDIF	
 	
@@ -196,8 +206,12 @@ getSelection			PROC		USES	ESI	EBX	EAX
 	CALL	createOne									;call createOne, insert a node with input via keyboard	
 
 	;case 2b
-	.ELSE
+	.ELSEIF	BL == 62h
 	
+	
+	;case 2c
+	.ELSEIF	BL == 63h
+	CALL	pasteClipBoard
 	.ENDIF
 	
 	JMP		RETURN
@@ -247,6 +261,7 @@ dumpList		PROC		USES	EDX	ESI	EAX	ECX
 	CALL	WriteString									;write string of address EDX to console
 
 WLOOP:	
+	CALL	Crlf										;call Crlf, go to the next line
 	MOV 	EAX,	(ListNode PTR [ESI]).dPosition		;move current nodes dPosition value into EAX
 	CALL 	WriteDec									;write decimal of value EAX to console
 	mWrite	" "											;
@@ -278,6 +293,7 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 ;	Receives:	Nothing
 ;	Returns:	Nothing
 ;---------------------------------------------------------------------------------------
+START:
 	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16		;allocate memory for a ListNode STRUCT
 	
 	;fail state
@@ -311,7 +327,7 @@ createOne		PROC		USES	EAX	ESI	ECX	EBX
 	CALL	WriteString									;write the string of address EDX to the console
 	CALL	getStringInput								;call getString, get string data from keyboard
 	MOV		(ListNode PTR [EAX]).NodeData, EBX			;move the new string address into .NodeData
-	
+
 QUIT:
 	RET
 createOne	ENDP
@@ -392,12 +408,13 @@ L1:
 	JMP		L1											;jump to L1
 	
 RETURN:
-	MOV		BL,		0Ah
-	MOV		[EAX],		BL
-	MOV		BL,		13
-	MOV		[EAX + 1],	BL
-	MOV		BL,		0
-	MOV		[EAX + 2], 	BL
+	;add CRLF and null characters
+	MOV		BL,		13									;move CR into BL
+	MOV		[EAX],		BL								;move BL into [EAX]
+	MOV		BL,		0Ah									;move LF into BL
+	MOV		[EAX + 1],	BL								;move BL into [EAX+1]
+	MOV		BL,		0									;move null into BL
+	MOV		[EAX + 2], 	BL								;move BL into [EAX+2]
 	RET
 stringCopy		ENDP
 
@@ -465,14 +482,12 @@ FOUND:
 	MOV		ESI,	EDX									;move nodeData into ESI
 	CALL	getCount									;call getCount
 	ADD		ECX,	16									;add number of bytes for ListNode being deleted
-	MOV		EAX,	dAllocatedBytes						;move dAllocatedBytes value to EAX
-	SUB		EAX,	ECX									;subtract 528 from EAX
-	MOV		dAllocatedBytes,	EAX						;move value in EAX into memory
+	SUB		dAllocatedBytes, ECX							;move dAllocatedBytes value to EAX
 	POP		ESI
 	
 	MOV		EAX,	(ListNode PTR [ESI]).heapHandle		;move the heap handle into EAX
-	MOV		mHeap,	EAX									;move heapHandle to memory for de-allocation
-	INVOKE	HeapFree, mHeap, 0, ESI						;de-allocate
+	;MOV		mHeap,	EAX									;move heapHandle to memory for de-allocation
+	INVOKE	HeapFree, EAX, 0, ESI						;de-allocate
 
 	MOV		(listNode	PTR	[EDI]).NextPtr,	EBX			;move the next address into (previous address).NextPtr
 	
@@ -508,14 +523,15 @@ editTarget		PROC		USES	EDX	EDI	ESI	EBX	ECX	EAX
 	CALL 	WriteString									;write the string of address EDX to the console
 	INVOKE	getString, addr	strSelNum, 3				;get string input
 	INVOKE	ascint32, addr strSelNum					;convert to 32 integer
-	CALL	Crlf
+	CALL	Crlf										;call Crlf, go to the next line
+	MOV		EDX,	OFFSET strInput						;move the string address into EDX
+	CALL	WriteString									;write prompt to console
 	
 	MOV 	EDX,	0
 	
 	MOV 	EDI,	OFFSET pListHead					;EDI == N - 1
 	MOV		EBX,	(ListNode PTR [ESI]).NextPtr		;EBX == N + 1
 	MOV		ECX,	(ListNode PTR [ESI]).dPosition		;ECX == N.dPosition
-	
 	
 	;check for item
 CHECKL:	
@@ -542,6 +558,7 @@ FOUND:
 	CALL	getStringInput								;get the new string
 	MOV		(ListNode	PTR	[ESI]).NodeData,	EBX		;move the new string address into nodeData
 	
+	CALL	Crlf										;call Crlf, go to the next line
 	mWrite	"Edit successful!"							;write success message to the console 
 	
 	JMP QUIT
@@ -553,6 +570,163 @@ NOTFOUND:
 QUIT:
 	RET
 editTarget		ENDP
+
+
+
+;-------------------------------------------------------------------------------------------------
+pasteClipBoard		PROC
+;
+;		This procedure will copy any text data from the windows clipboard and dynamically allocate a
+;	buffer to store the text.  Another procedure will be called to parse the text and add it to the
+;	linked list.
+;
+;	Receives:	Nothing
+;	Returns:	Nothing
+;------------------------------------------------------------------------------------------------   
+.data
+	hDynamicBuffer		DWORD 	0
+	hClipBoard			HANDLE 	0
+	dBuffSize			DWORD	0
+	
+.code	
+	INVOKE 	OpenClipboard,NULL										;open the clipboard process
+	
+    INVOKE 	GetClipboardData, 1										;return a handle to the clipboards data
+	MOV		hClipBoard,	EAX											;save the result into hClipBoard
+	
+	INVOKE 	GlobalSize, hClipBoard									;get the size of the data on the clipboard
+	INC		EAX														;increment by 1 to account for null
+	MOV		dBuffSize,	EAX											;move the new size into dBuffSize									
+	ADD		dAllocatedBytes, EAX									;add EAX to the value labeled dAllocatedBytes
+	
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, dBuffSize			;allocate memory for the dynamic buffer
+	MOV		hDynamicBuffer,		EAX									;move the handle for the allocated memory into hDynamicBuffer
+	MOV		EAX,	hClipBoard										;move hClipBoard (clipboard data handle) into EAX
+	
+	INVOKE 	GlobalLock, EAX											;lock the clipboard data in memory and return the address of its first byte
+	INVOKE 	lstrcpy, hDynamicBuffer, EAX							;copy the string at address EAX into memory labeled hDynamicBuffer
+	INVOKE	GlobalUnlock, hClipBoard								;unlock the data in memory
+	
+	INVOKE	CloseClipboard											;close the clipboard process
+
+	MOV		ESI,	hDynamicBuffer									;move hDynamicBuffer value into ESI for parseBufferToNode
+	CALL	parseBufferToNode
+	
+	INVOKE	HeapFree, mHeap, 0, hDynamicBuffer						;de-allocate
+	
+	RET
+pasteClipBoard		ENDP
+
+
+;-------------------------------------------------------------------------------------------------------------------
+parseBufferToNode			PROC	USES	EBX
+;	
+;		This procedure will receive a string in ESI and parse the string by ending each string with CRLF and a null.
+;	After a new string has been allocated and copied it will be passed to the procedure "appendStrToList" which will 
+;	add the newly allocated node to the end of the list and sets all of its data.
+;
+;	Receives:	Address of dynamic buffer in ESI
+;	Returns:	Nothing
+;-------------------------------------------------------------------------------------------------------------------
+PARSE:
+	MOV		ECX,	0									;clear ECX
+	PUSH 	ESI											;save the pasted buffer address
+	;get count for string allocation
+COUNT:
+	MOV		BL,		[ESI]								;move the nth element of [ESI] into BL
+	CMP		BL,		0Ah									;compare nth element of ESI to BL
+	JE		ALLOC										;if equal jump to ALLOC
+	CMP		BL,		0
+	JE		ALLOC										;if equal jump to EOC
+	INC		ECX											;increment ECX
+	INC		ESI											;increment ESI
+	JMP		COUNT										;jump to COUNT
+	
+	;allocate memory for string
+ALLOC:	
+	ADD		ECX,	2									;add room to count for LF and null 
+
+	POP		ESI											;restore ESI
+	PUSH	ECX											;save ECX
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, ECX		;allocate memory on the heap of size ECX
+	MOV 	EDI,	EAX									;move the new address into EDI
+	MOV		EBX,	EDI									;move EDI into EDX
+	
+	POP		ECX											;restore ECX
+	INC		dAllocatedBytes								;increment dAllocatedBytes
+	INC		dAllocatedBytes								;increment dAllocatedBytes
+	DEC		ECX											;decrement ECX
+	
+	;copy string data
+COPY:
+	MOV		DL,		[ESI]								;move the nth element of [ESI] into BL
+	MOV		[EDI],	DL									;move BL into the nth element into [EAX]
+	INC		ESI											;go to nth + 1 element of ESI
+	INC		EDI											;go to nth + 1 element of EAX
+	DEC		dBuffSize									;decrement dBuffSize
+	LOOP	COPY										;LOOP to COPY until ECX = 0
+
+	;allocate node
+STRDONE:	
+	MOV		EDX, 	EAX									;move the address into EDX for appendStrToList
+	CALL 	appendStrToList								;call appendStrToList
+.IF		dBuffSize == 0			
+	JMP		RETURN										;jump to return if dBuffSize == 0
+.ENDIF		
+	MOV		BL,		[ESI+1]								;move the next element of [ESI] into BL
+	CMP		BL, 	0									;compare BL to 0
+	JNE		PARSE										;jump to parse if they are not equal
+	
+RETURN:
+	RET
+parseBufferToNode			ENDP
+
+
+
+;---------------------------------------------------------------------------------------------------
+appendStrToList			PROC		USES	ESI	EAX ECX	EDX
+;
+;	This procedure appends a node of address EAX into the linked list.
+;
+;	Receives:	New node address in EAX
+;	Returns:	Nothing
+;---------------------------------------------------------------------------------------------------
+	PUSH 	EDX
+	
+	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, 16		;allocate memory for a ListNode STRUCT
+	
+	;fail state
+.IF 		EAX == NULL
+	mWrite "HeapAlloc failed"							;write fail message to console
+	jmp 	QUIT										;jump to quit
+.ENDIF
+	ADD		dAllocatedBytes,	16						;save the new value to memory
+	
+	MOV		ESI,	pLastAddr							;move the address in pLastAddr into ESI
+	MOV	 	ECX,	(ListNode PTR [ESI]).dPosition		;increment count
+	
+	;set pointer if list is null
+.IF ECX == 0			
+	MOV	 	pListHead, EAX								;set list head to current address in EAX
+	
+	;set pointers if list has at least one element
+.ELSE
+	MOV		(ListNode PTR [ESI]).NextPtr, EAX			;set the last list items NextPtr equal to the address in EAX
+	
+.ENDIF
+	MOV		EBX,	mHeap
+	MOV		(ListNode PTR [EAX]).heapHandle, EBX		;move mHeap into heapHandle
+	MOV		(ListNode PTR [EAX]).NextPtr, OFFSET lListTail;set next pointer to NULL
+	MOV 	pLastAddr, 	EAX								;save the last address to memory
+	POP		EDX
+	MOV		(ListNode PTR [EAX]).NodeData, EDX			;move the new string address into .NodeData
+	INC 	dCount										;move list count into ECX
+	MOV 	EDX,	dCount								;move dCount into EDX
+	MOV 	(ListNode PTR [EAX]).dPosition, EDX			;move count # into dPosition
+
+QUIT:
+	RET
+appendStrToList			ENDP
 
 
 
@@ -568,7 +742,7 @@ substringSearch		PROC		USES	EAX	EBX	ECX	EDX	ESI EDI
 	MOV		ESI,	pListHead							;ESI == N
 	
 .IF		ESI == OFFSET lListTail
-	mWrite "The list is empty."							;display console message
+	mWrite "The list is empty. "						;display console message
 	JMP		QUIT										;jump to QUIT
 .ELSE
 	MOV		EDX,	OFFSET strSubPrompt					;move offset address of strSubPrompt into EDX
@@ -592,11 +766,16 @@ SUBSRCH:
 	.ENDIF
 	JMP		NEXT										;at the end of list string
 .ENDIF	
+
+.IF	BYTE PTR [EDI] == 13
+	JMP		MATCH
+.ENDIF
 	
 .IF	BYTE PTR [EDI] == BL
 	INC		EDX											;go to the next list string element
 	INC		EDI											;go to the next search string element
 .ELSE
+	MOV		EDI,	EAX									;restore EDX
 	INC		EDX											;go to the next list string element
 .ENDIF	
 	JMP 	SUBSRCH										;jump subsrch
@@ -670,6 +849,9 @@ WRITE:
 	PUSH	ESI											;push ESI onto the stack
 	MOV		ESI,	EDX									;move EDX into ESI for getCount
 	CALL	getCount									;call getCount, result is in ECX
+	
+	mov		eax,	ecx
+	call	WriteDec
 	POP		ESI											;restore ESI
 	
 	;EDX = pointer to string, ECX = # of bytes to write to file, EAX = number of bytes written after execution
