@@ -326,6 +326,10 @@ START:
 	MOV 	EDX,	OFFSET strInput						;move the offset address of strInput into EDX
 	CALL	WriteString									;write the string of address EDX to the console
 	CALL	getStringInput								;call getString, get string data from keyboard
+	MOV		ESI,	EBX
+	CALL	getCount
+	ADD		ECX,	dAllocatedBytes
+	MOV		dAllocatedBytes,	ECX
 	MOV		(ListNode PTR [EAX]).NodeData, EBX			;move the new string address into .NodeData
 
 QUIT:
@@ -347,8 +351,6 @@ getStringInput		PROC		USES	EAX	EDX	ECX ESI
 	
 	MOV		ESI,	OFFSET strBuffer
 	CALL	getCount									;get the number of characters in strBuffer
-	ADD		ECX,	dAllocatedBytes						;add number dAllocatedBytes to number of bytes allocated
-	MOV		dAllocatedBytes,		ECX					;save the new value to memory
 	
 	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, ECX		;allocate memory on the heap
 	MOV 	EBX,	EAX									;move the address in EAX into EBX
@@ -369,7 +371,6 @@ getCount		PROC		USES	EAX	ESI
 ;	Receives:	address of string to be counter in ESI
 ;	Returns:	# of characters to ECX
 ;---------------------------------------------------------------------------------------
-	MOV		ESI,	OFFSET strBuffer					;move the offset address of strBuffer into ESI
 	MOV		ECX,	0									;clear ECX
 	
 L1:
@@ -380,7 +381,6 @@ L1:
 	INC		ECX											;increment ECX
 	JMP		L1											;jump to L1
 RETURN:	
-	ADD		ECX,	2									;include cr and lf
 	RET
 getCount		ENDP
 
@@ -482,7 +482,7 @@ FOUND:
 	MOV		ESI,	EDX									;move nodeData into ESI
 	CALL	getCount									;call getCount
 	ADD		ECX,	16									;add number of bytes for ListNode being deleted
-	SUB		dAllocatedBytes, ECX							;move dAllocatedBytes value to EAX
+	SUB		dAllocatedBytes, ECX						;move dAllocatedBytes value to EAX
 	POP		ESI
 	
 	MOV		EAX,	(ListNode PTR [ESI]).heapHandle		;move the heap handle into EAX
@@ -554,8 +554,19 @@ CHECKL:
 	
 	;item found;;	Edit string
 FOUND:	
+	PUSH	ESI
+	MOV		EAX,	ESI
+	MOV		ESI,	(ListNode	PTR [EAX]).nodeData
+	CALL	getCount
+	SUB		dAllocatedBytes,	ECX
+	;MOV		dAllocatedBytes,	ECX
 	;target item is last in the list
 	CALL	getStringInput								;get the new string
+	MOV		ESI,	EBX
+	CALL	getCount
+	ADD		ECX,	dAllocatedBytes
+	MOV		dAllocatedBytes,	ECX
+	POP		ESI
 	MOV		(ListNode	PTR	[ESI]).NodeData,	EBX		;move the new string address into nodeData
 	
 	CALL	Crlf										;call Crlf, go to the next line
@@ -828,7 +839,7 @@ saveListToFile		PROC		USES	ESI	EAX	EBX	ECX	EDX
 	JMP		QUIT										;jump to QUIT
 .ENDIF	
 
-	INVOKE 		CreateFile,	ADDR strSaveFile, GENERIC_WRITE, DO_NOT_SHARE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0
+	INVOKE 	CreateFile,	ADDR strSaveFile, GENERIC_WRITE, DO_NOT_SHARE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0
 
 .IF		EAX == INVALID_HANDLE_VALUE
 	mWrite "Error occured while opening file."			;write the error msg to the console
@@ -850,12 +861,10 @@ WRITE:
 	MOV		ESI,	EDX									;move EDX into ESI for getCount
 	CALL	getCount									;call getCount, result is in ECX
 	
-	mov		eax,	ecx
-	call	WriteDec
 	POP		ESI											;restore ESI
 	
 	;EDX = pointer to string, ECX = # of bytes to write to file, EAX = number of bytes written after execution
-	INVOKE WriteFile, hFileHandle, EDX, ECX, addr dBytesWritten, 0 
+	INVOKE 	WriteFile, hFileHandle, EDX, ECX, addr dBytesWritten, 0 
 	
 	MOV		EBX, 	(ListNode PTR [ESI]).NextPtr		;move the next address into EBX
 	MOV		ESI,	EBX									;move the next address into ESI ; ESI = n
