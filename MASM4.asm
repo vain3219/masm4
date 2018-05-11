@@ -31,6 +31,9 @@
 	CloseClipboard			PROTO
 	ExitProcess 			PROTO, dwExitCode:dword
 
+	;External prototypes
+	EXTERN					readFile@0:PROC
+	
 	;Constants
 HEAP_START		=		2000000
 HEAP_MAX		=		400000000
@@ -209,11 +212,11 @@ getSelection			PROC		USES	ESI	EBX	EAX
 
 	;case 2b
 	.ELSEIF	BL == 62h
-	
-	
+	CALL	readFile@0									;call readFile; populates the list with the contents of a file
+	ADD		dAllocatedBytes,	ECX
 	;case 2c
 	.ELSEIF	BL == 63h
-	CALL	pasteClipBoard
+	CALL	pasteClipBoard								;copies data from the clipboard into the list
 	.ENDIF
 	
 	JMP		RETURN
@@ -608,7 +611,8 @@ pasteClipBoard		PROC
 	
 	INVOKE 	GlobalSize, hClipBoard									;get the size of the data on the clipboard
 	INC		EAX														;increment by 1 to account for null
-	MOV		dBuffSize,	EAX											;move the new size into dBuffSize									
+	MOV		dBuffSize,	EAX											;move the new size into dBuffSize
+	SUB		dAllocatedBytes,	2
 	ADD		dAllocatedBytes, EAX									;add EAX to the value labeled dAllocatedBytes
 	
 	INVOKE 	HeapAlloc, mHeap, HEAP_ZERO_MEMORY, dBuffSize			;allocate memory for the dynamic buffer
@@ -640,10 +644,10 @@ parseBufferToNode			PROC	USES	EBX
 ;	Receives:	Address of dynamic buffer in ESI
 ;	Returns:	Nothing
 ;-------------------------------------------------------------------------------------------------------------------
-.IF		dBuffSize == 0
-	mWrite	"ClipBoard is Empty."
-	JMP		RETURN
-.ENDIF
+;.IF		dBuffSize == 0
+;	mWrite	"ClipBoard is Empty."
+;	JMP		RETURN
+;.ENDIF
 
 PARSE:
 	MOV		ECX,	0									;clear ECX

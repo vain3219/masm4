@@ -29,17 +29,14 @@ BytesRead   dd ?
 readFile PROC
 
     invoke  CreateFile,ADDR FileName,GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0            
-
     mov     hFile,eax
-
     invoke  GetFileSize,eax,0
-	
     mov     FileSize,eax
+	mov		ecx,eax
+	push 	ecx
     inc     eax
-
     invoke  GlobalAlloc,GMEM_FIXED,eax
     mov     hMem,eax
-
     add     eax,FileSize
 
     mov     BYTE PTR [eax],0   ; Set the last byte to NULL so that StdOut
@@ -53,10 +50,9 @@ readFile PROC
 
     invoke  CloseHandle,hFile
 
-    invoke  StdOut,hMem
-
     invoke  GlobalFree,hMem
 
+	pop		ecx
     RET
 
 readFile ENDP
