@@ -85,7 +85,9 @@ strSubPrompt	BYTE		"Please enter a string to be searched for- ", 0Ah, 0
 
 strBuffer		BYTE		512	DUP(0)
 strSelection	BYTE		3 	DUP(0)
-strSelNum		BYTE		2 	DUP(0)
+strSelNum		BYTE		5 	DUP(0)
+strSelNum1		BYTE		5 	DUP(0)
+strSelNum2		BYTE		5 	DUP(0)
 dAllocatedBytes	DWORD 		0
 dInt			DWORD		0
 
@@ -436,8 +438,8 @@ deleteNode		PROC		USES	EDX	EDI	ESI	ECX	EAX	EBX
 
 	MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
 	CALL 	WriteString									;write the string of address EDX to the console
-	INVOKE	getString, addr	strSelNum, 3				;get string input
-	INVOKE	ascint32, addr strSelNum					;convert to 32 integer
+	INVOKE	getString, addr	strSelNum1, 4				;get string input
+	INVOKE	ascint32, addr strSelNum1					;convert to 32 integer
 	CALL	Crlf
 	
 	MOV 	EDX,	0
@@ -486,7 +488,6 @@ FOUND:
 	POP		ESI
 	
 	MOV		EAX,	(ListNode PTR [ESI]).heapHandle		;move the heap handle into EAX
-	;MOV		mHeap,	EAX									;move heapHandle to memory for de-allocation
 	INVOKE	HeapFree, EAX, 0, ESI						;de-allocate
 
 	MOV		(listNode	PTR	[EDI]).NextPtr,	EBX			;move the next address into (previous address).NextPtr
@@ -521,8 +522,8 @@ editTarget		PROC		USES	EDX	EDI	ESI	EBX	ECX	EAX
 	
 	MOV		EDX,	OFFSET strIndexInput				;move offset of strIndexInput into EDX
 	CALL 	WriteString									;write the string of address EDX to the console
-	INVOKE	getString, addr	strSelNum, 3				;get string input
-	INVOKE	ascint32, addr strSelNum					;convert to 32 integer
+	INVOKE	getString, addr	strSelNum2, 4				;get string input
+	INVOKE	ascint32, addr strSelNum2					;convert to 32 integer
 	CALL	Crlf										;call Crlf, go to the next line
 	MOV		EDX,	OFFSET strInput						;move the string address into EDX
 	CALL	WriteString									;write prompt to console
@@ -559,7 +560,7 @@ FOUND:
 	MOV		ESI,	(ListNode	PTR [EAX]).nodeData
 	CALL	getCount
 	SUB		dAllocatedBytes,	ECX
-	;MOV		dAllocatedBytes,	ECX
+
 	;target item is last in the list
 	CALL	getStringInput								;get the new string
 	MOV		ESI,	EBX
@@ -639,6 +640,11 @@ parseBufferToNode			PROC	USES	EBX
 ;	Receives:	Address of dynamic buffer in ESI
 ;	Returns:	Nothing
 ;-------------------------------------------------------------------------------------------------------------------
+.IF		dBuffSize == 0
+	mWrite	"ClipBoard is Empty."
+	JMP		RETURN
+.ENDIF
+
 PARSE:
 	MOV		ECX,	0									;clear ECX
 	PUSH 	ESI											;save the pasted buffer address
@@ -667,6 +673,12 @@ ALLOC:
 	INC		dAllocatedBytes								;increment dAllocatedBytes
 	INC		dAllocatedBytes								;increment dAllocatedBytes
 	DEC		ECX											;decrement ECX
+
+.IF		ECX == 1
+	DEC		dAllocatedBytes
+	DEC		dAllocatedBytes
+	JMP		RETURN
+.ENDIF	
 	
 	;copy string data
 COPY:
@@ -785,6 +797,19 @@ SUBSRCH:
 .IF	BYTE PTR [EDI] == BL
 	INC		EDX											;go to the next list string element
 	INC		EDI											;go to the next search string element
+	JMP 	SUBSRCH										;jump subsrch
+.ENDIF
+	ADD		BL,	20h
+.IF BYTE PTR [EDI] == BL
+	INC		EDX											;go to the next list string element
+	INC		EDI											;go to the next search string element
+	JMP 	SUBSRCH										;jump subsrch
+.ENDIF
+	SUB		BL, 40h
+.IF BYTE PTR [EDI] == BL 
+	INC		EDX											;go to the next list string element
+	INC		EDI											;go to the next search string element
+	JMP 	SUBSRCH										;jump subsrch
 .ELSE
 	MOV		EDI,	EAX									;restore EDX
 	INC		EDX											;go to the next list string element
@@ -885,12 +910,6 @@ RETURN:
 QUIT:	
 	RET
 saveListToFile		ENDP
-
-
-
-;---------------------------------------------------------------------------------------
-
-;---------------------------------------------------------------------------------------
 
 
 
